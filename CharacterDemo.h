@@ -114,9 +114,12 @@ private:
 	Controls FromClientToServerControls();
 	void ProcessClientControls();
 
+	void CreateUI();
+
     /// Touch utility object.
     SharedPtr<Touch> touch_;
 	SharedPtr<Window> window_;
+	SharedPtr<UIElement> uiRoot_;
     /// The controllable character component.
     WeakPtr<Character> character_;
     /// First person camera flag.
@@ -127,12 +130,14 @@ private:
 	missle mis;
 	ResourceCache* cache;
 	menu* menu_;
-	Light* l_flashlight;
-	Node* n_sub; // player node
+	//Light* l_flashlight;
+	//Node* n_sub; // player node
 	Terrain* t_terrain;
 	bool menuVisible = true;
 	bool drawDebug_;
 	float MOVE_SPEED = 20.0f;
+
+	unsigned playerNodeID = -1;
 
 	// MISSILES
 	const int MAX_MISSLES;

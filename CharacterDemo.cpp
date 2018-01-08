@@ -75,7 +75,8 @@ CharacterDemo::CharacterDemo(Context* context) :
 	Sample(context),
 	firstPerson_(false),
 	MAX_MISSLES(10),
-	drawDebug_(false)
+	drawDebug_(false),
+	uiRoot_(GetSubsystem<UI>()->GetRoot())
 {
 }
 
@@ -144,7 +145,7 @@ void CharacterDemo::CreateClientScene() {
 	cameraNode_ = scene_->CreateChild("Camera", LOCAL);
 	//cameraNode_->SetRotation(Quaternion(0.0f, 90.0f, 0.0f));
 	Camera* camera = cameraNode_->CreateComponent<Camera>();
-	cameraNode_->SetPosition(Vector3(0.0f, 00.0f, 0.0f));
+	cameraNode_->SetPosition(Vector3(0.0f, 0.0f, 0.0f));
 	camera->SetFarClip(750.0f);
 
 	GetSubsystem<Renderer>()->SetViewport(0, new Viewport(context_, scene_, camera));
@@ -165,27 +166,33 @@ void CharacterDemo::CreateClientScene() {
 
 	if (gs == SINGLEPLAYER) {
 		bS.Initialise(cache, scene_);
+		Node* newPlayer = CreateCharacter();
+		cameraNode_->SetPosition(newPlayer->GetPosition());
+		cameraNode_->SetParent(newPlayer);
 	}
 	CreateEnvironemnt();
+	CreateUI();
 }
 
 Node* CharacterDemo::CreateCharacter()
 {
-	n_sub = scene_->CreateChild("Submarine");
+	Node* n_sub = scene_->CreateChild("Player");
 	n_sub->SetPosition(Vector3(0.0f, 5.0f, 0.0f));
 	n_sub->SetScale(Vector3(0.4f, 0.4f, 0.4f));
 	StaticModel* m_sub = n_sub->CreateComponent<StaticModel>();
-	m_sub->SetModel(cache->GetResource<Model>("Models/Jack.mdl"));
+	m_sub->SetModel(cache->GetResource<Model>("Models/Submarine.mdl"));
 	//m_sub->ApplyMaterialList();
 	RigidBody* rb_sub = n_sub->CreateComponent<RigidBody>();
 	rb_sub->SetCollisionLayer(4);
 	CollisionShape* cs_sub = n_sub->CreateComponent<CollisionShape>();
 	cs_sub->SetBox(Vector3(16.0f, 12.0f, 50.0f));
 
+	playerNodeID = n_sub->GetID();
+
 	// CREATE PLAYER LIGHT
-	Node* n_flashlight = n_sub->CreateChild("Flash Light");
+	Node* n_flashlight = n_sub->CreateChild("Flashlight");
 	n_flashlight->SetDirection(cameraNode_->GetDirection());
-	l_flashlight = n_flashlight->CreateComponent<Light>();
+	Light* l_flashlight = n_flashlight->CreateComponent<Light>();
 	l_flashlight->SetColor(Color(1.0f, 1.0f, 1.0f));
 	l_flashlight->SetLightType(LIGHT_SPOT);
 	l_flashlight->SetBrightness(0.5f);
@@ -306,47 +313,49 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 	Input* input = GetSubsystem<Input>();
 	const float MOUSE_SENSITIVITY = 0.1f;
 	IntVector2 mouseMove = input->GetMouseMove();
-	/*
+	
 	if (!ui->GetCursor()->IsVisible() && scene_ != nullptr && gs != NONE) {
 
 		yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
 		pitch_ += MOUSE_SENSITIVITY * mouseMove.y_;
 		pitch_ = Clamp(pitch_, -90.0f, 90.0f);
 
+		MOVE_SPEED = 20.0f;
+
 		if (gs == SINGLEPLAYER ) {
+
+			Node* player = scene_->GetNode(playerNodeID);
 			//std::cout << "updating in singleplayer" << std::endl;
-			n_sub->SetRotation(Quaternion(pitch_, yaw_, 0.0f));
+			player->SetRotation(Quaternion(pitch_, yaw_, 0.0f));
 			if (input->GetKeyDown(KEY_SHIFT)) MOVE_SPEED *= 10.0f;
-			if (input->GetKeyDown(KEY_W)) n_sub->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
-			if (input->GetKeyDown(KEY_S)) n_sub->Translate(Vector3::BACK * MOVE_SPEED * timeStep);
-			if (input->GetKeyDown(KEY_A)) n_sub->Translate(Vector3::LEFT * MOVE_SPEED * timeStep);
-			if (input->GetKeyDown(KEY_D)) n_sub->Translate(Vector3::RIGHT * MOVE_SPEED * timeStep);
+			if (input->GetKeyDown(KEY_W)) player->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
+			if (input->GetKeyDown(KEY_S)) player->Translate(Vector3::BACK * MOVE_SPEED * timeStep);
+			if (input->GetKeyDown(KEY_A)) player->Translate(Vector3::LEFT * MOVE_SPEED * timeStep);
+			if (input->GetKeyDown(KEY_D)) player->Translate(Vector3::RIGHT * MOVE_SPEED * timeStep);
 			if (input->GetMouseButtonPress(MOUSEB_LEFT)) {
 				spawnMissle();
 			}
-			cameraNode_->SetPosition(n_sub->GetPosition());
-			cameraNode_->SetRotation(n_sub->GetRotation());
 
 		
 			//TODO somehow get rigidbodies to do this???
-			Vector3 pos = n_sub->GetPosition();
+			Vector3 pos = player->GetPosition();
 			if ((pos.y_ - 2.0f) < t_terrain->GetHeight(pos)) {
-				n_sub->SetPosition(Vector3(pos.x_, t_terrain->GetHeight(pos) + 2.0f, pos.z_));
+				player->SetPosition(Vector3(pos.x_, t_terrain->GetHeight(pos) + 2.0f, pos.z_));
 			}
 			if ((pos.x_ - 2.0f) > 204.8f) {
-				n_sub->SetPosition(Vector3(pos.x_ - 2.0f, pos.y_, pos.z_));
+				player->SetPosition(Vector3(pos.x_ - 2.0f, pos.y_, pos.z_));
 			}
 			if ((pos.x_ - 2.0f) < -204.8f) {
-				n_sub->SetPosition(Vector3(pos.x_ + 2.0f, pos.y_, pos.z_));
+				player->SetPosition(Vector3(pos.x_ + 2.0f, pos.y_, pos.z_));
 			}
 			if ((pos.z_ - 2.0f) > 102.4f) {
-				n_sub->SetPosition(Vector3(pos.x_, pos.y_, pos.z_ - 2.0f));
+				player->SetPosition(Vector3(pos.x_, pos.y_, pos.z_ - 2.0f));
 			}
 			if ((pos.z_ - 2.0f) < -102.4f) {
-				n_sub->SetPosition(Vector3(pos.x_, pos.y_, pos.z_ + 2.0f));
+				player->SetPosition(Vector3(pos.x_, pos.y_, pos.z_ + 2.0f));
 			}
 			if ((pos.y_ + 2.0f) > 90.0f) {
-				n_sub->SetPosition(Vector3(pos.x_, pos.y_ - 2.0f, pos.z_));
+				player->SetPosition(Vector3(pos.x_, pos.y_ - 2.0f, pos.z_));
 			}
 		}
 		
@@ -355,7 +364,7 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 			drawDebug_ = !drawDebug_;
 		}
 		if (input->GetKeyPress(KEY_L) && gs != SERVER) {
-			l_flashlight->SetEnabled(!l_flashlight->IsEnabled());
+			scene_->GetNode(playerNodeID)->GetComponent<Light>()->SetEnabled(!scene_->GetNode(playerNodeID)->GetComponent<Light>()->IsEnabled());
 		}
 		if (gs != CLIENT) {
 			//std::cout << "updating in NOT client" << std::endl;	//called on server
@@ -373,9 +382,8 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 		
 
 	}
-	*/
-
-	if (clientObjectID_) {
+	
+	if (gs == CLIENT) {
 		//std::cout << "updating playernode" << std::endl;			//called on client
 		Node* playerNode = this->scene_->GetNode(clientObjectID_);
 		if (playerNode) {
@@ -410,64 +418,64 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 }
 
 void CharacterDemo::HandleCollision(StringHash eventType, VariantMap& eventData) {
-	//if (gs != CLIENT && gs != NONE) {
-	//	using namespace NodeCollision;
-	//	auto* collided = static_cast<RigidBody*>(eventData[P_BODY].GetPtr());
-	//	auto* collided2 = static_cast<RigidBody*>(eventData[P_OTHERBODY].GetPtr());
+	if (gs != CLIENT && gs != NONE) {
+		using namespace NodeCollision;
+		auto* collided = static_cast<RigidBody*>(eventData[P_BODY].GetPtr());
+		auto* collided2 = static_cast<RigidBody*>(eventData[P_OTHERBODY].GetPtr());
 
-	//	if (collided2->GetNode()->GetName() == "Missile") {
-	//		collided2->GetNode()->Remove();
-	//		missileCount--;
-	//		if (collided->GetNode()->GetName().Contains("Boid_", false)) {
-	//			//bS.boidList.erase(bS.boidList.begin() + collided->GetNode()->GetVar("boid_number").GetInt());
-	//			collided->GetNode()->SetEnabled(false);
-	//			//std::cout << "erased " << collided->GetNode()->GetVar("boid_number").GetInt() << std::endl;
-	//		}
-	//	}
-	//}
+		if (collided2->GetNode()->GetName() == "Missile") {
+			collided2->GetNode()->Remove();
+			missileCount--;
+			if (collided->GetNode()->GetName().Contains("Boid_", false)) {
+				//bS.boidList.erase(bS.boidList.begin() + collided->GetNode()->GetVar("boid_number").GetInt());
+				collided->GetNode()->SetEnabled(false);
+				//std::cout << "erased " << collided->GetNode()->GetVar("boid_number").GetInt() << std::endl;
+			}
+		}
+	}
 }
 
 void CharacterDemo::HandlePostUpdate(StringHash eventType, VariantMap& eventData) {
-	//if (gs != NONE) {
-	//	DebugRenderer* dRenderer = scene_->GetComponent<DebugRenderer>();
-	//	if (drawDebug_) {
-	//		PhysicsWorld* pW_ = scene_->GetComponent<PhysicsWorld>();
-	//		pW_->DrawDebugGeometry(dRenderer, true);
-	//	}
-	//}
+	if (gs != NONE) {
+		DebugRenderer* dRenderer = scene_->GetComponent<DebugRenderer>();
+		if (drawDebug_) {
+			PhysicsWorld* pW_ = scene_->GetComponent<PhysicsWorld>();
+			pW_->DrawDebugGeometry(dRenderer, true);
+		}
+	}
 }
 
 void CharacterDemo::spawnMissle() {
-	//if (missileCount < MAX_MISSLES) {
-	//	missileCount++;
-	//	missileLeftOrRight++;
-	//	missle t = missle();
-	//	t.Initialise(cache, scene_);
-	//	
-	//	t.pRigidBody->SetRotation(n_sub->GetRotation());
-	//	if (missileLeftOrRight == 1) {
-	//		t.pRigidBody->SetPosition((n_sub->GetPosition() + (n_sub->GetRotation() * Vector3(-4.0f, -0.6f, 9.0f))));
-	//	} else {
-	//		t.pRigidBody->SetPosition((n_sub->GetPosition() + (n_sub->GetRotation() * Vector3(4.0f, -0.6f, 9.0f))));
-	//		missileLeftOrRight = 0;
-	//	}
-	//	t.pRigidBody->SetLinearVelocity(n_sub->GetDirection() * 100.0f);
-	//}
+	if (missileCount < MAX_MISSLES) {
+		missileCount++;
+		Node* player = scene_->GetNode(playerNodeID);
+		missileLeftOrRight++;
+		missle t = missle();
+		t.Initialise(cache, scene_);
+		
+		t.pRigidBody->SetRotation(player->GetRotation());
+		if (missileLeftOrRight == 1) {
+			t.pRigidBody->SetPosition((player->GetPosition() + (player->GetRotation() * Vector3(-4.0f, -0.6f, 9.0f))));
+		} else {
+			t.pRigidBody->SetPosition((player->GetPosition() + (player->GetRotation() * Vector3(4.0f, -0.6f, 9.0f))));
+			missileLeftOrRight = 0;
+		}
+		t.pRigidBody->SetLinearVelocity(player->GetDirection() * 100.0f);
+	}
 }
 
 void CharacterDemo::CreateMainMenu() {
 
 	UI* ui = GetSubsystem<UI>();
-	UIElement* root = ui->GetRoot();
 	XMLFile* uiStyle = cache->GetResource<XMLFile>("UI/DefaultStyle.xml");
-	root->SetDefaultStyle(uiStyle);
+	uiRoot_->SetDefaultStyle(uiStyle);
 
 	SharedPtr<Cursor> cursor(new Cursor(context_));
 	cursor->SetStyleAuto(uiStyle);
 	ui->SetCursor(cursor);
 
 	window_ = new Window(context_);
-	root->AddChild(window_);
+	uiRoot_->AddChild(window_);
 
 	Font* font = cache->GetResource<Font>("Fonts/Anonymous Pro.ttf");
 	window_->SetMinWidth(200);
@@ -610,4 +618,19 @@ void CharacterDemo::handleClientSceneLoaded(StringHash eventType, VariantMap& ev
 	VariantMap remoteEventData;
 	remoteEventData[PLAYER_ID] = newObject->GetID();
 	newConnection->SendRemoteEvent(E_CLIENTOBJECTAUTHORITY, true, remoteEventData);
+}
+
+void CharacterDemo::CreateUI() {
+	UI* ui = GetSubsystem<UI>();
+	Graphics* graphics = GetSubsystem<Graphics>();
+	float winWidth = (float)graphics->GetWidth();
+	float winHeight = (float)graphics->GetHeight();
+
+	Texture2D* texCrosshair = cache->GetResource<Texture2D>("Textures/crosshair.png");
+	SharedPtr<Sprite> spriteCrosshair(new Sprite(context_));
+	spriteCrosshair->SetTexture(texCrosshair);
+	spriteCrosshair->SetPosition(winWidth/2, winHeight/2);
+	spriteCrosshair->SetHotSpot(7, 7);
+
+	ui->GetRoot()->AddChild(spriteCrosshair);
 }
