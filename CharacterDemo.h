@@ -56,7 +56,8 @@ class CharacterDemo : public Sample
 	enum gamestate {
 		NONE,
 		CLIENT,
-		SERVER
+		SERVER,
+		SINGLEPLAYER
 	};
 
 public:

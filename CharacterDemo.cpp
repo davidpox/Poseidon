@@ -121,6 +121,7 @@ void CharacterDemo::CreateServerScene()
 
 	bS.Initialise(cache, scene_);
 
+	CreateCharacter();
 	CreateEnvironemnt();
 }
 
@@ -145,9 +146,10 @@ void CharacterDemo::CreateClientScene() {
 	s_skybox->SetModel(cache->GetResource<Model>("Models/Box.mdl"));
 	s_skybox->SetMaterial(cache->GetResource<Material>("Materials/Skybox.xml"));
 
-	bS.Initialise(cache, scene_);
-
-	CreateCharacter();
+	if (gs == SINGLEPLAYER) {
+		bS.Initialise(cache, scene_);
+		CreateCharacter();
+	}
 	CreateEnvironemnt();
 }
 
@@ -293,22 +295,15 @@ void CharacterDemo::SubscribeToEvents()
 
 void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 {
-	std::cout << "1" << std::endl;
 	UI* ui = GetSubsystem<UI>();
 	using namespace Update;
-	std::cout << "2" << std::endl;
 
 	float timeStep = eventData[P_TIMESTEP].GetFloat();
-	std::cout << "3" << std::endl;
 	if (GetSubsystem<UI>()->GetFocusElement()) return;
-	std::cout << "4" << std::endl;
 	Input* input = GetSubsystem<Input>();
-	std::cout << "5" << std::endl;
 	float MOVE_SPEED = 20.0f;
 	const float MOUSE_SENSITIVITY = 0.1f;
-	std::cout << "6" << std::endl;
 	IntVector2 mouseMove = input->GetMouseMove();
-	std::cout << "7" << std::endl;
 	if (!ui->GetCursor()->IsVisible() && scene_ != nullptr && gs != NONE) {
 		yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
 		pitch_ += MOUSE_SENSITIVITY * mouseMove.y_;
@@ -360,9 +355,10 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 			File loadFile(context_, GetSubsystem<FileSystem>()->GetProgramDir() + "Data/Scenes/map.xml", FILE_READ);
 			scene_->LoadXML(loadFile);
 		}
-		if (gs == SERVER) {
+		if (gs != CLIENT) {
 			bS.Update(timeStep);
 		}
+		
 	}
 	if (input->GetKeyPress(KEY_M)) {
 		menuVisible = !menuVisible;
@@ -419,9 +415,7 @@ void CharacterDemo::CreateMainMenu() {
 
 	UI* ui = GetSubsystem<UI>();
 	UIElement* root = ui->GetRoot();
-	std::cout << "1" << std::endl;
 	XMLFile* uiStyle = cache->GetResource<XMLFile>("UI/DefaultStyle.xml");
-	std::cout << "2" << std::endl;
 	root->SetDefaultStyle(uiStyle);
 
 	SharedPtr<Cursor> cursor(new Cursor(context_));
@@ -467,7 +461,8 @@ void CharacterDemo::HandleQuit(StringHash eventType, VariantMap& eventData) {
 
 void CharacterDemo::StartSingleplayer(StringHash eventType, VariantMap& eventData) {
 	UI* ui = GetSubsystem<UI>();
-	gs = CLIENT;
+	gs = SINGLEPLAYER;
+	CreateClientScene();
 	window_->SetVisible(false);
 	ui->GetCursor()->SetVisible(false);
 }
