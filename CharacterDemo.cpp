@@ -64,6 +64,11 @@
 
 #include <Urho3D/DebugNew.h>
 
+static const StringHash E_CUSTOMEVENT("CustomEvent");
+static const StringHash E_CLIENTOBJECTAUTHORITY("ClientObjectAuthority");
+static const StringHash PLAYER_ID("IDENTITY");
+static const StringHash E_CLIENTISREADY("ClientReadyToStart");
+
 URHO3D_DEFINE_APPLICATION_MAIN(CharacterDemo)
 
 CharacterDemo::CharacterDemo(Context* context) :
@@ -80,21 +85,13 @@ CharacterDemo::~CharacterDemo()
 
 void CharacterDemo::Start()
 {
-	OpenConsoleWindow();
-	// Execute base class startup
 	Sample::Start();
-	if (touchEnabled_)
-		touch_ = new Touch(context_, TOUCH_SENSITIVITY);
-	
-	CreateScene();
+	OpenConsoleWindow();
 	CreateMainMenu();
-
-
 	SubscribeToEvents();
-	//Sample::InitMouseMode(MM_RELATIVE);
 }
 
-void CharacterDemo::CreateScene()
+void CharacterDemo::CreateServerScene()
 {
 	// SCENE CREATION
 	cache = GetSubsystem<ResourceCache>();
@@ -107,7 +104,35 @@ void CharacterDemo::CreateScene()
 	// CAMERA CREATION
 
 	// ZONE & FOG CREATION
-	Node* zoneNode = scene_->CreateChild("Zone");
+	Node* zoneNode = scene_->CreateChild("Zone", LOCAL);
+	Zone* zone = zoneNode->CreateComponent<Zone>();
+	zone->SetAmbientColor(Color(0.15f, 0.15f, 0.15f));
+	zone->SetFogColor(Color(0.09f, 0.301f, 0.647f));
+	zone->SetFogStart(1.0f);
+	zone->SetFogEnd(90.0f);
+	zone->SetBoundingBox(BoundingBox(-1000.0f, 1000.0f));
+
+	Node* n_skybox = scene_->CreateChild("Skybox", LOCAL);
+	Skybox* s_skybox = n_skybox->CreateComponent<Skybox>();
+	s_skybox->SetModel(cache->GetResource<Model>("Models/Box.mdl"));
+	s_skybox->SetMaterial(cache->GetResource<Material>("Materials/Skybox.xml"));
+
+	bS.Initialise(cache, scene_);
+
+	CreateEnvironemnt();
+}
+
+void CharacterDemo::CreateClientScene() {
+	// SCENE CREATION
+	cache = GetSubsystem<ResourceCache>();
+
+	scene_ = new Scene(context_);
+	scene_->CreateComponent<Octree>(LOCAL);
+	scene_->CreateComponent<PhysicsWorld>(LOCAL);
+	scene_->CreateComponent<DebugRenderer>(LOCAL);
+
+	// ZONE & FOG CREATION
+	Node* zoneNode = scene_->CreateChild("Zone", LOCAL);
 	Zone* zone = zoneNode->CreateComponent<Zone>();
 	zone->SetAmbientColor(Color(0.15f, 0.15f, 0.15f));
 	zone->SetFogColor(Color(0.09f, 0.301f, 0.647f));
@@ -120,14 +145,13 @@ void CharacterDemo::CreateScene()
 	s_skybox->SetModel(cache->GetResource<Model>("Models/Box.mdl"));
 	s_skybox->SetMaterial(cache->GetResource<Material>("Materials/Skybox.xml"));
 
-	CreateCharacter();
-	CreateEnvironemnt();
-
 	bS.Initialise(cache, scene_);
 
+	CreateCharacter();
+	CreateEnvironemnt();
 }
 
-void CharacterDemo::CreateCharacter()
+Node* CharacterDemo::CreateCharacter()
 {
 	n_sub = scene_->CreateChild("Submarine");
 	n_sub->SetPosition(Vector3(0.0f, 5.0f, 0.0f));
@@ -141,7 +165,7 @@ void CharacterDemo::CreateCharacter()
 	cs_sub->SetBox(Vector3(16.0f, 12.0f, 50.0f));
 	//cs_sub->SetPosition(Vector3(0.0f, 0.0f, -5.0f));
 
-	cameraNode_ = n_sub->CreateChild("Camera", LOCAL);
+	cameraNode_ = n_sub->CreateChild("Camera");
 	//cameraNode_->SetRotation(Quaternion(0.0f, 90.0f, 0.0f));
 	Camera* camera = cameraNode_->CreateComponent<Camera>();
 	cameraNode_->SetPosition(Vector3(0.0f, 0.0f, 0.0f));
@@ -162,12 +186,14 @@ void CharacterDemo::CreateCharacter()
 	l_flashlight->SetRange(100);
 	l_flashlight->SetFov(45);
 	l_flashlight->SetEnabled(false);
+
+	return n_sub;
 }
 
 void CharacterDemo::CreateEnvironemnt()
 {
 	// CREATE TERRAIN
-	Node* n_terrain = scene_->CreateChild("Terrrain");
+	Node* n_terrain = scene_->CreateChild("Terrrain", LOCAL);
 	n_terrain->SetPosition(Vector3(0.0f, -5.0f, 0.0f));
 	t_terrain = n_terrain->CreateComponent<Terrain>();
 	t_terrain->SetSpacing(Vector3(0.4f, 0.05f, 0.2f));
@@ -183,7 +209,7 @@ void CharacterDemo::CreateEnvironemnt()
 	cs_terrain->SetTerrain();
 
 	// CREATE WALL 1
-	Node* n_wall_1 = scene_->CreateChild("Wall");
+	Node* n_wall_1 = scene_->CreateChild("Wall", LOCAL);
 	n_wall_1->SetPosition(Vector3(0.0f, 45.0f, 102.9f));		// distance is terrain size / 2 + wall size / 2
 	n_wall_1->SetScale(Vector3(409.6f, 100.0f, 1.0f));		// size is 1024 * terrain spacing 
 	StaticModel* m_wall_1 = n_wall_1->CreateComponent<StaticModel>();
@@ -195,7 +221,7 @@ void CharacterDemo::CreateEnvironemnt()
 	cs_wall_1->SetBox(Vector3::ONE);
 
 	// CREATE WALL 2
-	Node* n_wall_2 = scene_->CreateChild("Wall");
+	Node* n_wall_2 = scene_->CreateChild("Wall", LOCAL);
 	n_wall_2->SetPosition(Vector3(0.0f, 45.0f, -102.9f));	// distance is terrain size / 2 + wall size / 2
 	n_wall_2->SetScale(Vector3(409.6f, 100.0f, 1.0f));		// size is 1024 * spacing 
 	StaticModel* m_wall_2 = n_wall_2->CreateComponent<StaticModel>();
@@ -207,7 +233,7 @@ void CharacterDemo::CreateEnvironemnt()
 	cs_wall_2->SetBox(Vector3::ONE);
 
 	// CREATE WALL 3
-	Node* n_wall_3 = scene_->CreateChild("Wall");
+	Node* n_wall_3 = scene_->CreateChild("Wall", LOCAL);
 	n_wall_3->SetPosition(Vector3(205.3f, 45.0f, 0.0f));		// distance is terrain size / 2 + wall size / 2
 	n_wall_3->SetScale(Vector3(1.0f, 100.0f, 204.8f));		// size is 1024 * spacing 
 	StaticModel* m_wall_3 = n_wall_3->CreateComponent<StaticModel>();
@@ -219,7 +245,7 @@ void CharacterDemo::CreateEnvironemnt()
 	cs_wall_3->SetBox(Vector3::ONE);
 
 	// CREATE WALL 4
-	Node* n_wall_4 = scene_->CreateChild("Wall");
+	Node* n_wall_4 = scene_->CreateChild("Wall", LOCAL);
 	n_wall_4->SetPosition(Vector3(-205.3f, 45.0f, 0.0f));		// distance is terrain size / 2 + wall size / 2
 	n_wall_4->SetScale(Vector3(1.0f, 100.0f, 204.8f));		// size is 1024 * spacing 
 	StaticModel* m_wall_4 = n_wall_4->CreateComponent<StaticModel>();
@@ -231,7 +257,7 @@ void CharacterDemo::CreateEnvironemnt()
 	cs_wall_4->SetBox(Vector3::ONE);
 
 	// CREATE WALL 5 - CEILING
-	Node* n_wall_5 = scene_->CreateChild("Wall");
+	Node* n_wall_5 = scene_->CreateChild("Ceiling", LOCAL);
 	n_wall_5->SetPosition(Vector3(0.0f, 95.0f, 0.0f));		// distance is terrain size / 2 + wall size / 2
 	n_wall_5->SetScale(Vector3(409.6f, 5.0f, 204.8f));		// size is 1024 * spacing 
 	StaticModel* m_wall_5 = n_wall_5->CreateComponent<StaticModel>();
@@ -247,7 +273,22 @@ void CharacterDemo::SubscribeToEvents()
 {
 	SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(CharacterDemo, HandleUpdate));
 	SubscribeToEvent(E_POSTUPDATE, URHO3D_HANDLER(CharacterDemo, HandlePostUpdate));
+
 	SubscribeToEvent(E_NODECOLLISION, URHO3D_HANDLER(CharacterDemo, HandleCollision));
+
+	SubscribeToEvent(E_CLIENTCONNECTED, URHO3D_HANDLER(CharacterDemo, handleClientConnected));
+	SubscribeToEvent(E_CLIENTDISCONNECTED, URHO3D_HANDLER(CharacterDemo, handleClientDisconnected));
+	SubscribeToEvent(E_PHYSICSPRESTEP, URHO3D_HANDLER(CharacterDemo, handlePhysicsPreStep));
+	SubscribeToEvent(E_CLIENTSCENELOADED, URHO3D_HANDLER(CharacterDemo, handleClientFinishedLoading));
+
+	SubscribeToEvent(E_CUSTOMEVENT, URHO3D_HANDLER(CharacterDemo, handleCustomEvent));
+	GetSubsystem<Network>()->RegisterRemoteEvent(E_CUSTOMEVENT);
+
+	SubscribeToEvent(E_CLIENTISREADY, URHO3D_HANDLER(CharacterDemo, handleClientToServerReadyToStart));
+	GetSubsystem<Network>()->RegisterRemoteEvent(E_CLIENTISREADY);
+
+	SubscribeToEvent(E_CLIENTOBJECTAUTHORITY, URHO3D_HANDLER(CharacterDemo, handleServerToClientObjectID));
+	GetSubsystem<Network>()->RegisterRemoteEvent(E_CLIENTOBJECTAUTHORITY);
 }
 
 void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
@@ -266,13 +307,12 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 
 	IntVector2 mouseMove = input->GetMouseMove();
 
-	if (!ui->GetCursor()->IsVisible()) {
+	if (!ui->GetCursor()->IsVisible() && scene_ != nullptr) {
 		yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
 		pitch_ += MOUSE_SENSITIVITY * mouseMove.y_;
 		pitch_ = Clamp(pitch_, -90.0f, 90.0f);
 
 		n_sub->SetRotation(Quaternion(pitch_, yaw_, 0.0f));
-
 		if (input->GetKeyDown(KEY_SHIFT)) MOVE_SPEED *= 10.0f;
 		if (input->GetKeyDown(KEY_W)) n_sub->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
 		if (input->GetKeyDown(KEY_S)) n_sub->Translate(Vector3::BACK * MOVE_SPEED * timeStep);
@@ -303,28 +343,30 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 		if ((pos.y_ + 2.0f) > 90.0f) {
 			n_sub->SetPosition(Vector3(pos.x_, pos.y_ - 2.0f, pos.z_));
 		}
+
+		if (input->GetKeyPress(KEY_P)) {
+			drawDebug_ = !drawDebug_;
+		}
+		if (input->GetKeyPress(KEY_L)) {
+			l_flashlight->SetEnabled(!l_flashlight->IsEnabled());
+		}
+		if (input->GetKeyPress(KEY_N)) {
+			File saveFile(context_, GetSubsystem<FileSystem>()->GetProgramDir() + "Data/Scenes/map.xml", FILE_WRITE);
+			scene_->SaveXML(saveFile);
+		}
+		if (input->GetKeyPress(KEY_B)) {
+			File loadFile(context_, GetSubsystem<FileSystem>()->GetProgramDir() + "Data/Scenes/map.xml", FILE_READ);
+			scene_->LoadXML(loadFile);
+		}
+		if (gs == SERVER) {
+			bS.Update(timeStep);
+		}
 	}
 	if (input->GetKeyPress(KEY_M)) {
 		menuVisible = !menuVisible;
 		ui->GetCursor()->SetVisible(menuVisible);
 		window_->SetVisible(menuVisible);
 	}
-	if (input->GetKeyPress(KEY_P)) {
-		drawDebug_ = !drawDebug_;
-	}
-	if (input->GetKeyPress(KEY_L)) {
-		l_flashlight->SetEnabled(!l_flashlight->IsEnabled());
-	}
-	if (input->GetKeyPress(KEY_N)) {
-		File saveFile(context_, GetSubsystem<FileSystem>()->GetProgramDir() + "Data/Scenes/map.xml", FILE_WRITE);
-		scene_->SaveXML(saveFile);
-	}
-	if (input->GetKeyPress(KEY_B)) {
-		File loadFile(context_, GetSubsystem<FileSystem>()->GetProgramDir() + "Data/Scenes/map.xml", FILE_READ);
-		scene_->LoadXML(loadFile);
-	}
-
-	bS.Update(timeStep);
 }
 
 void CharacterDemo::HandleCollision(StringHash eventType, VariantMap& eventData) {
@@ -358,8 +400,6 @@ void CharacterDemo::spawnMissle() {
 		missle t = missle();
 		t.Initialise(cache, scene_);
 		
-		
-
 		t.pRigidBody->SetRotation(n_sub->GetRotation());
 		if (missileLeftOrRight == 1) {
 			t.pRigidBody->SetPosition((n_sub->GetPosition() + (n_sub->GetRotation() * Vector3(-4.0f, -0.6f, 9.0f))));
@@ -414,7 +454,6 @@ void CharacterDemo::CreateMainMenu() {
 	//ui->GetCursor()->SetVisible(menuVisible);
 }
 
-
 void CharacterDemo::HandleQuit(StringHash eventType, VariantMap& eventData) {
 	engine_->Exit();
 }
@@ -429,6 +468,8 @@ void CharacterDemo::StartSingleplayer(StringHash eventType, VariantMap& eventDat
 void CharacterDemo::handleConnect(StringHash eventType, VariantMap& eventData) {
 	std::cout << "called handleConnect" << std::endl;
 
+	CreateClientScene();
+
 	UI* ui = GetSubsystem<UI>();
 	Network* network = GetSubsystem<Network>();
 	String ip = leIPAddress->GetText().Trimmed();
@@ -442,6 +483,7 @@ void CharacterDemo::handleConnect(StringHash eventType, VariantMap& eventData) {
 void CharacterDemo::handleCreateServer(StringHash eventType, VariantMap& eventData) {
 	std::cout << "called handleCreateServer" << std::endl;
 	UI* ui = GetSubsystem<UI>();
+	CreateServerScene();
 	Network* network = GetSubsystem<Network>();
 	network->StartServer(SERVER_PORT);
 	gs = SERVER;
@@ -452,4 +494,99 @@ void CharacterDemo::handleCreateServer(StringHash eventType, VariantMap& eventDa
 void CharacterDemo::handleDisconnect(StringHash eventType, VariantMap& eventData) {
 	std::cout << "called handleDisconnect" << std::endl;
 	gs = NONE;
+}
+
+void CharacterDemo::handleClientConnected(StringHash eventType, VariantMap& eventData) { 
+	using namespace ClientConnected;
+	Connection* newConnection = static_cast<Connection*>(eventData[P_CONNECTION].GetPtr());
+	newConnection->SetScene(scene_);
+	
+	VariantMap remoteEventData;
+	remoteEventData["aValueRemoteValue"] = 0;
+	newConnection->SendRemoteEvent(E_CUSTOMEVENT, true, remoteEventData);
+}
+
+void CharacterDemo::handleClientDisconnected(StringHash eventType, VariantMap& eventData) { 
+	using namespace ClientConnected;
+}
+
+void CharacterDemo::handlePhysicsPreStep(StringHash eventType, VariantMap& eventData) { 
+	Network* network = GetSubsystem<Network>();
+	Connection* serverConnection = network->GetServerConnection();
+	if (serverConnection) {
+		serverConnection->SetPosition(n_sub->GetPosition());
+		serverConnection->SetControls(FromClientToServerControls());
+
+		VariantMap remoteEventData;
+		remoteEventData["aValueRemoteValue"] = 0;
+		serverConnection->SendRemoteEvent(E_CUSTOMEVENT, true, remoteEventData);
+	} else if (network->IsServerRunning()) {
+		processClientControls();
+	}
+}
+
+void CharacterDemo::handleClientFinishedLoading(StringHash eventType, VariantMap& eventData) { 
+	printf("Client has finished loading up the scene from the server!\n");
+}
+
+void CharacterDemo::handleCustomEvent(StringHash eventType, VariantMap& eventData) { 
+	printf("Custom event!!\n");
+}
+
+Controls CharacterDemo::FromClientToServerControls() { 
+	Input* input = GetSubsystem<Input>();
+
+	Controls controls;
+	controls.Set(CTRL_FORWARD, input->GetKeyDown(KEY_W));
+	controls.Set(CTRL_BACK, input->GetKeyDown(KEY_S));
+	controls.Set(CTRL_LEFT, input->GetKeyDown(KEY_A));
+	controls.Set(CTRL_RIGHT, input->GetKeyDown(KEY_D));
+	controls.Set(CTRL_RUN, input->GetKeyDown(KEY_SHIFT));
+	controls.Set(CTRL_SHOOT, input->GetMouseButtonPress(MOUSEB_LEFT));
+	controls.yaw_ = yaw_;
+	controls.pitch_ = pitch_;
+
+	return controls;
+}
+
+void CharacterDemo::handleServerToClientObjectID(StringHash eventType, VariantMap& eventData) { 
+	clientObjectID_ = eventData[PLAYER_ID].GetUInt();
+	printf("Client ID: %i\n", clientObjectID_);
+}
+
+void CharacterDemo::handleClientToServerReadyToStart(StringHash eventType, VariantMap& eventData) { 
+	printf("Event sent by the Client and running on the SErver: Client is ready to start the game!\n");
+	using namespace ClientConnected;
+	Connection* newConnection = static_cast<Connection*>(eventData[P_CONNECTION].GetPtr());
+	Node* newObject = CreateCharacter();
+	serverObjects_[newConnection] = newObject;
+	VariantMap remoteEventData;
+	remoteEventData[PLAYER_ID] = newObject->GetID();
+	newConnection->SendRemoteEvent(E_CLIENTOBJECTAUTHORITY, true, remoteEventData);
+}
+
+void CharacterDemo::processClientControls() {
+	Network* network = GetSubsystem<Network>();
+	const Vector<SharedPtr<Connection>> &connections = network->GetClientConnections();
+	for (unsigned i = 0; i < connections.Size(); ++i) {
+		Connection* connection = connections[i];
+		Node* playerNode = serverObjects_[connection];
+		float MOVE_SPEED = 20.0f;
+
+		if (!playerNode) continue;
+
+		RigidBody* body = playerNode->GetComponent<RigidBody>();
+		const Controls& controls = connection->GetControls();
+
+		playerNode->SetRotation(Quaternion(controls.pitch_, controls.yaw_, 0.0f));
+		if (controls.buttons_ & CTRL_RUN) MOVE_SPEED *= 10.0f;
+		if (controls.buttons_ & CTRL_FORWARD)	playerNode->Translate(Vector3::FORWARD * MOVE_SPEED);
+		if (controls.buttons_ & CTRL_BACK)		playerNode->Translate(Vector3::BACK * MOVE_SPEED);
+		if (controls.buttons_ & CTRL_LEFT)		playerNode->Translate(Vector3::LEFT * MOVE_SPEED);
+		if (controls.buttons_ & CTRL_RIGHT)		playerNode->Translate(Vector3::RIGHT * MOVE_SPEED);
+		if (controls.buttons_ & CTRL_SHOOT) {
+			//todo
+		}
+
+	}
 }

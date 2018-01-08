@@ -32,6 +32,8 @@ const int CTRL_BACK = 2;
 const int CTRL_LEFT = 4;
 const int CTRL_RIGHT = 8;
 const int CTRL_JUMP = 16;
+const int CTRL_RUN = 32;
+const int CTRL_SHOOT = 64;
 
 const float MOVE_FORCE = 0.8f;
 const float INAIR_MOVE_FORCE = 0.02f;

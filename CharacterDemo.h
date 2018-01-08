@@ -72,9 +72,10 @@ private:
 
 
     /// Create static scene content.
-    void CreateScene();
+    void CreateServerScene();
+	void CreateClientScene();
     /// Create controllable character.
-    void CreateCharacter();
+    Node* CreateCharacter();
     /// Subscribe to necessary events.
     void SubscribeToEvents();
     /// Handle application update. Set controls to character.
@@ -98,6 +99,20 @@ private:
 	void handleConnect(StringHash eventType, VariantMap& eventData);
 	void handleCreateServer(StringHash eventType, VariantMap& eventData);
 	void handleDisconnect(StringHash eventType, VariantMap& eventData);
+
+	/* Server Callbacks */
+	void handleClientConnected(StringHash eventType, VariantMap& eventData);
+	void handleClientDisconnected(StringHash eventType, VariantMap& eventData);
+	void handlePhysicsPreStep(StringHash eventType, VariantMap& eventData);
+	void handleClientFinishedLoading(StringHash eventType, VariantMap& eventData);
+	void handleCustomEvent(StringHash eventType, VariantMap& eventData);
+
+	Controls FromClientToServerControls();
+	unsigned clientObjectID_ = 0;
+	HashMap<Connection*, WeakPtr<Node>> serverObjects_;
+	void handleServerToClientObjectID(StringHash eventType, VariantMap& eventData);
+	void handleClientToServerReadyToStart(StringHash eventType, VariantMap& eventData);
+	void processClientControls();
 
     /// Touch utility object.
     SharedPtr<Touch> touch_;
