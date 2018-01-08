@@ -87,6 +87,8 @@ void CharacterDemo::Start()
 {
 	Sample::Start();
 	OpenConsoleWindow();
+	cache = GetSubsystem<ResourceCache>();
+	gs = NONE;
 	CreateMainMenu();
 	SubscribeToEvents();
 }
@@ -124,8 +126,6 @@ void CharacterDemo::CreateServerScene()
 
 void CharacterDemo::CreateClientScene() {
 	// SCENE CREATION
-	cache = GetSubsystem<ResourceCache>();
-
 	scene_ = new Scene(context_);
 	scene_->CreateComponent<Octree>(LOCAL);
 	scene_->CreateComponent<PhysicsWorld>(LOCAL);
@@ -293,21 +293,23 @@ void CharacterDemo::SubscribeToEvents()
 
 void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 {
+	std::cout << "1" << std::endl;
 	UI* ui = GetSubsystem<UI>();
 	using namespace Update;
+	std::cout << "2" << std::endl;
 
 	float timeStep = eventData[P_TIMESTEP].GetFloat();
-
+	std::cout << "3" << std::endl;
 	if (GetSubsystem<UI>()->GetFocusElement()) return;
-
+	std::cout << "4" << std::endl;
 	Input* input = GetSubsystem<Input>();
-
+	std::cout << "5" << std::endl;
 	float MOVE_SPEED = 20.0f;
 	const float MOUSE_SENSITIVITY = 0.1f;
-
+	std::cout << "6" << std::endl;
 	IntVector2 mouseMove = input->GetMouseMove();
-
-	if (!ui->GetCursor()->IsVisible() && scene_ != nullptr) {
+	std::cout << "7" << std::endl;
+	if (!ui->GetCursor()->IsVisible() && scene_ != nullptr && gs != NONE) {
 		yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
 		pitch_ += MOUSE_SENSITIVITY * mouseMove.y_;
 		pitch_ = Clamp(pitch_, -90.0f, 90.0f);
@@ -386,10 +388,12 @@ void CharacterDemo::HandleCollision(StringHash eventType, VariantMap& eventData)
 }
 
 void CharacterDemo::HandlePostUpdate(StringHash eventType, VariantMap& eventData) {
-	DebugRenderer* dRenderer = scene_->GetComponent<DebugRenderer>();
-	if (drawDebug_) {
-		PhysicsWorld* pW_ = scene_->GetComponent<PhysicsWorld>();
-		pW_->DrawDebugGeometry(dRenderer, true);
+	if (gs != NONE) {
+		DebugRenderer* dRenderer = scene_->GetComponent<DebugRenderer>();
+		if (drawDebug_) {
+			PhysicsWorld* pW_ = scene_->GetComponent<PhysicsWorld>();
+			pW_->DrawDebugGeometry(dRenderer, true);
+		}
 	}
 }
 
@@ -415,7 +419,9 @@ void CharacterDemo::CreateMainMenu() {
 
 	UI* ui = GetSubsystem<UI>();
 	UIElement* root = ui->GetRoot();
+	std::cout << "1" << std::endl;
 	XMLFile* uiStyle = cache->GetResource<XMLFile>("UI/DefaultStyle.xml");
+	std::cout << "2" << std::endl;
 	root->SetDefaultStyle(uiStyle);
 
 	SharedPtr<Cursor> cursor(new Cursor(context_));
@@ -452,6 +458,7 @@ void CharacterDemo::CreateMainMenu() {
 	SubscribeToEvent(btnDisconnect, E_RELEASED, URHO3D_HANDLER(CharacterDemo, handleDisconnect));
 	window_->SetVisible(menuVisible);
 	//ui->GetCursor()->SetVisible(menuVisible);
+	std::cout << "End of createMenu" << std::endl;
 }
 
 void CharacterDemo::HandleQuit(StringHash eventType, VariantMap& eventData) {
