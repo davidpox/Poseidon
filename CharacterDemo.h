@@ -106,7 +106,8 @@ private:
 	void handleClientDisconnected(StringHash eventType, VariantMap& eventData);
 	void handlePhysicsPreStep(StringHash eventType, VariantMap& eventData);
 	void handleCustomEvent(StringHash eventType, VariantMap& eventData);
-	void handleConnectedToServer(StringHash evetnType, VariantMap& eventData);
+	void handleConnectedToServer(StringHash eventType, VariantMap& eventData);
+	void handleClientSceneLoaded(StringHash eventType, VariantMap& eventData);
 	unsigned clientObjectID_ = 0;
 	HashMap<Connection*, WeakPtr<Node>> serverObjects_;
 	void handleServerToClientObjectID(StringHash eventType, VariantMap& eventData);

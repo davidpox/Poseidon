@@ -287,6 +287,7 @@ void CharacterDemo::SubscribeToEvents()
 	SubscribeToEvent(E_CLIENTDISCONNECTED, URHO3D_HANDLER(CharacterDemo, handleClientDisconnected));
 	SubscribeToEvent(E_SERVERCONNECTED, URHO3D_HANDLER(CharacterDemo, handleConnectedToServer));
 	SubscribeToEvent(E_PHYSICSPRESTEP, URHO3D_HANDLER(CharacterDemo, handlePhysicsPreStep));
+	SubscribeToEvent(E_CLIENTSCENELOADED, URHO3D_HANDLER(CharacterDemo, handleClientSceneLoaded));
 
 	//SubscribeToEvent(E_CUSTOMEVENT, URHO3D_HANDLER(CharacterDemo, handleCustomEvent));
 	//GetSubsystem<Network>()->RegisterRemoteEvent(E_CUSTOMEVENT);
@@ -504,15 +505,6 @@ void CharacterDemo::handleClientConnected(StringHash eventType, VariantMap& even
 
 	Connection* newConnection = static_cast<Connection*>(eventData[P_CONNECTION].GetPtr());
 	newConnection->SetScene(scene_);
-	using namespace ClientConnected;
-	Connection* newConnection = static_cast<Connection*>(eventData[P_CONNECTION].GetPtr());
-
-	Node* newObject = CreateCharacter();
-	serverObjects_[newConnection] = newObject;
-
-	VariantMap remoteEventData;
-	remoteEventData[PLAYER_ID] = newObject->GetID();
-	newConnection->SendRemoteEvent(E_CLIENTOBJECTAUTHORITY, true, remoteEventData);
 }
 
 void CharacterDemo::handleClientDisconnected(StringHash eventType, VariantMap& eventData) { 
@@ -566,3 +558,16 @@ void CharacterDemo::handleServerToClientObjectID(StringHash eventType, VariantMa
 void CharacterDemo::handleConnectedToServer(StringHash eventType, VariantMap& eventData) {
 	std::cout << "Connected to server!!!!!!!!1" << std::endl;
 } 
+
+void CharacterDemo::handleClientSceneLoaded(StringHash eventType, VariantMap& eventData) {
+	std::cout << "Client loaded scene!" << std::endl;
+	using namespace ClientConnected;
+	Connection* newConnection = static_cast<Connection*>(eventData[P_CONNECTION].GetPtr());
+
+	Node* newObject = CreateCharacter();
+	serverObjects_[newConnection] = newObject;
+
+	VariantMap remoteEventData;
+	remoteEventData[PLAYER_ID] = newObject->GetID();
+	newConnection->SendRemoteEvent(E_CLIENTOBJECTAUTHORITY, true, remoteEventData);
+}
