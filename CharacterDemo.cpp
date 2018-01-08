@@ -499,7 +499,7 @@ void CharacterDemo::handleDisconnect(StringHash eventType, VariantMap& eventData
 }
 
 void CharacterDemo::handleClientConnected(StringHash eventType, VariantMap& eventData) { 
-	printf("Client Connected!");
+	printf("Client Connected!\n");
 	using namespace ClientConnected;
 	Connection* newConnection = static_cast<Connection*>(eventData[P_CONNECTION].GetPtr());
 	newConnection->SetScene(scene_);
@@ -530,14 +530,12 @@ void CharacterDemo::handlePhysicsPreStep(StringHash eventType, VariantMap& event
 
 void CharacterDemo::handleClientFinishedLoading(StringHash eventType, VariantMap& eventData) { 
 	printf("Client has finished loading up the scene from the server!\n");
-	if (clientObjectID_ == 0) {
-		Network* network = GetSubsystem<Network>();
-		Connection* serverConnection = network->GetServerConnection();
-		if (serverConnection) {
-			VariantMap remoteEventData;
-			remoteEventData[PLAYER_ID] = 0;
-			serverConnection->SendRemoteEvent(E_CLIENTISREADY, true, remoteEventData);
-		}
+	Network* network = GetSubsystem<Network>();
+	Connection* serverConnection = network->GetServerConnection();
+	if (serverConnection) {
+		VariantMap remoteEventData;
+		remoteEventData[PLAYER_ID] = 0;
+		serverConnection->SendRemoteEvent(E_CLIENTISREADY, true, remoteEventData);
 	}
 }
 
