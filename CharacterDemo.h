@@ -110,6 +110,8 @@ private:
 	unsigned clientObjectID_ = 0;
 	HashMap<Connection*, WeakPtr<Node>> serverObjects_;
 	void handleServerToClientObjectID(StringHash eventType, VariantMap& eventData);
+	Controls FromClientToServerControls();
+	void ProcessClientControls();
 
     /// Touch utility object.
     SharedPtr<Touch> touch_;

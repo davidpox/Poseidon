@@ -200,7 +200,7 @@ Node* CharacterDemo::CreateCharacter()
 void CharacterDemo::CreateEnvironemnt()
 {
 	// CREATE TERRAIN
-	Node* n_terrain = scene_->CreateChild("Terrrain", LOCAL);
+	Node* n_terrain = scene_->CreateChild("Terrrain");
 	n_terrain->SetPosition(Vector3(0.0f, -5.0f, 0.0f));
 	t_terrain = n_terrain->CreateComponent<Terrain>();
 	t_terrain->SetSpacing(Vector3(0.4f, 0.05f, 0.2f));
@@ -312,20 +312,18 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 		pitch_ = Clamp(pitch_, -90.0f, 90.0f);
 
 		if (gs == SINGLEPLAYER ) {
-			Node* playerNode = scene_->GetNode(clientObjectID_);
-			if (playerNode) {
-				n_sub->SetRotation(Quaternion(pitch_, yaw_, 0.0f));
-				if (input->GetKeyDown(KEY_SHIFT)) MOVE_SPEED *= 10.0f;
-				if (input->GetKeyDown(KEY_W)) n_sub->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
-				if (input->GetKeyDown(KEY_S)) n_sub->Translate(Vector3::BACK * MOVE_SPEED * timeStep);
-				if (input->GetKeyDown(KEY_A)) n_sub->Translate(Vector3::LEFT * MOVE_SPEED * timeStep);
-				if (input->GetKeyDown(KEY_D)) n_sub->Translate(Vector3::RIGHT * MOVE_SPEED * timeStep);
-				if (input->GetMouseButtonPress(MOUSEB_LEFT)) {
-					spawnMissle();
-				}
-				cameraNode_->SetPosition(n_sub->GetPosition());
-				cameraNode_->SetRotation(n_sub->GetRotation());
+			n_sub->SetRotation(Quaternion(pitch_, yaw_, 0.0f));
+			if (input->GetKeyDown(KEY_SHIFT)) MOVE_SPEED *= 10.0f;
+			if (input->GetKeyDown(KEY_W)) n_sub->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
+			if (input->GetKeyDown(KEY_S)) n_sub->Translate(Vector3::BACK * MOVE_SPEED * timeStep);
+			if (input->GetKeyDown(KEY_A)) n_sub->Translate(Vector3::LEFT * MOVE_SPEED * timeStep);
+			if (input->GetKeyDown(KEY_D)) n_sub->Translate(Vector3::RIGHT * MOVE_SPEED * timeStep);
+			if (input->GetMouseButtonPress(MOUSEB_LEFT)) {
+				spawnMissle();
 			}
+			cameraNode_->SetPosition(n_sub->GetPosition());
+			cameraNode_->SetRotation(n_sub->GetRotation());
+
 		
 			//TODO somehow get rigidbodies to do this???
 			Vector3 pos = n_sub->GetPosition();
@@ -476,137 +474,95 @@ void CharacterDemo::StartSingleplayer(StringHash eventType, VariantMap& eventDat
 }
 
 void CharacterDemo::handleConnect(StringHash eventType, VariantMap& eventData) {
-	std::cout << "called handleConnect" << std::endl;
-
+	gs = CLIENT;
 	CreateClientScene();
-
-	UI* ui = GetSubsystem<UI>();
 	Network* network = GetSubsystem<Network>();
-	String ip = leIPAddress->GetText().Trimmed();
-	if (ip.Empty()) ip = "localhost";
-	network->Connect(ip, SERVER_PORT, scene_);
-	window_->SetVisible(false);
-	ui->GetCursor()->SetVisible(false);
+	String address = leIPAddress->GetText().Trimmed();
+	if (address.Empty()) address = "localhost";
+	network->Connect(address, SERVER_PORT, scene_);
+
 }
 
 void CharacterDemo::handleCreateServer(StringHash eventType, VariantMap& eventData) {
-	std::cout << "called handleCreateServer" << std::endl;
 	UI* ui = GetSubsystem<UI>();
+	Log::WriteRaw("(handleCreateServer) CALLED");
+	gs = SERVER;
 	CreateServerScene();
 	Network* network = GetSubsystem<Network>();
 	network->StartServer(SERVER_PORT);
-	gs = SERVER;
 	window_->SetVisible(false);
 	ui->GetCursor()->SetVisible(false);
 }
 
 void CharacterDemo::handleDisconnect(StringHash eventType, VariantMap& eventData) {
-	std::cout << "called handleDisconnect" << std::endl;
 
-	Network* network = GetSubsystem<Network>();
-	Connection* serverConnection = network->GetServerConnection();
-	if (serverConnection) {
-		serverConnection->Disconnect();
-		scene_->Clear(true, false);
-		clientObjectID_ = 0;
-	} else if (network->IsServerRunning()) {
-		network->StopServer();
-		scene_->Clear(true, false);
-	}
-
-	gs = NONE;
 }
 
 void CharacterDemo::handleClientConnected(StringHash eventType, VariantMap& eventData) { 
-	printf("Client Connected!\n");
+	Log::WriteRaw("(handleClientConnected) CALLED");
 	using namespace ClientConnected;
+
 	Connection* newConnection = static_cast<Connection*>(eventData[P_CONNECTION].GetPtr());
 	newConnection->SetScene(scene_);
+	using namespace ClientConnected;
+	Connection* newConnection = static_cast<Connection*>(eventData[P_CONNECTION].GetPtr());
 
-	Node* newNode = CreateCharacter();
-	serverObjects_[newConnection] = newNode;
+	Node* newObject = CreateCharacter();
+	serverObjects_[newConnection] = newObject;
 
 	VariantMap remoteEventData;
-	remoteEventData[PLAYER_ID] = newNode->GetID();
+	remoteEventData[PLAYER_ID] = newObject->GetID();
 	newConnection->SendRemoteEvent(E_CLIENTOBJECTAUTHORITY, true, remoteEventData);
 }
 
 void CharacterDemo::handleClientDisconnected(StringHash eventType, VariantMap& eventData) { 
 	using namespace ClientConnected;
-	Connection* connection = static_cast<Connection*>(eventData[P_CONNECTION].GetPtr());
-	Node* object = serverObjects_[connection];
-	if (object) object->Remove();
-
-	serverObjects_.Erase(connection);
 }
 
 void CharacterDemo::handlePhysicsPreStep(StringHash eventType, VariantMap& eventData) { 
-	UI* ui = GetSubsystem<UI>();
 	Network* network = GetSubsystem<Network>();
 	Connection* serverConnection = network->GetServerConnection();
-
 	if (serverConnection) {
-		Input* input = GetSubsystem<Input>();
-		Controls controls;
-		if(!ui->GetFocusElement()) {
-			controls.Set(CTRL_FORWARD, input->GetKeyDown(KEY_W));
-			controls.Set(CTRL_BACK, input->GetKeyDown(KEY_S));
-			controls.Set(CTRL_LEFT, input->GetKeyDown(KEY_A));
-			controls.Set(CTRL_RIGHT, input->GetKeyDown(KEY_D));
-			//controls.Set(CTRL_RUN, input->GetKeyDown(KEY_SHIFT));
-			//controls.Set(CTRL_SHOOT, input->GetMouseButtonPress(MOUSEB_LEFT));
-			controls.yaw_ = yaw_;
-			//controls.pitch_ = pitch_;
-		}
-		cameraNode_->SetPosition(serverConnection->GetPosition());
-		serverConnection->SetControls(controls);
-
-		//VariantMap remoteEventData;
-		//remoteEventData["aValueRemoteValue"] = 0;
-		//serverConnection->SendRemoteEvent(E_CUSTOMEVENT, true, remoteEventData);
-
+		serverConnection->SetPosition(cameraNode_->GetPosition());
+		serverConnection->SetControls(FromClientToServerControls());
 	} else if (network->IsServerRunning()) {
-		Network* network = GetSubsystem<Network>();
-		const Vector<SharedPtr<Connection>> &connections = network->GetClientConnections();
-		for (unsigned i = 0; i < connections.Size(); ++i) {
-			Connection* connection = connections[i];
-			Node* playerNode = serverObjects_[connection];
-			float MOVE_SPEED = 1.0f;
+		ProcessClientControls();
+	}
+}
 
-			if (!playerNode) continue;
+Controls CharacterDemo::FromClientToServerControls() {
+	Input* input = GetSubsystem<Input>();
+	Controls controls;
+	controls.Set(CTRL_FORWARD, input->GetKeyDown(KEY_W));
+	controls.Set(CTRL_BACK, input->GetKeyDown(KEY_S));
+	controls.Set(CTRL_LEFT, input->GetKeyDown(KEY_A));
+	controls.Set(CTRL_RIGHT, input->GetKeyDown(KEY_D));
+	controls.yaw_ = yaw_;
+	return controls;
+}
 
-			RigidBody* body = playerNode->GetComponent<RigidBody>();
-			const Controls& controls = connection->GetControls();
-
-			playerNode->SetRotation(Quaternion(controls.pitch_, controls.yaw_, 0.0f));
-			if (controls.buttons_ & CTRL_RUN) MOVE_SPEED *= 10.0f;
-			if (controls.buttons_ & CTRL_FORWARD)	playerNode->Translate(Vector3::FORWARD * MOVE_SPEED);
-			if (controls.buttons_ & CTRL_BACK)		playerNode->Translate(Vector3::BACK * MOVE_SPEED);
-			if (controls.buttons_ & CTRL_LEFT)		playerNode->Translate(Vector3::LEFT * MOVE_SPEED);
-			if (controls.buttons_ & CTRL_RIGHT)		playerNode->Translate(Vector3::RIGHT * MOVE_SPEED);
-			if (controls.buttons_ & CTRL_SHOOT) {
-				//todo
-			}
-			//std::cout << playerNode->GetPosition().x_ << " " << playerNode->GetPosition().z_ << std::endl;
-		}
+void CharacterDemo::ProcessClientControls() {
+	Network* network = GetSubsystem<Network>();
+	const Vector<SharedPtr<Connection>>& connections = network->GetClientConnections();
+	for (unsigned i = 0; i < connections.Size(); ++i) {
+		Connection* connection = connections[i];
+		const Controls& controls = connection->GetControls();
+		if(controls.buttons_ & CTRL_FORWARD) printf("FORWARD\n");
+		if (controls.buttons_ & CTRL_LEFT) printf("LEFT\n");
+		if (controls.buttons_ & CTRL_RIGHT) printf("RIGHT\n");
+		if (controls.buttons_ & CTRL_BACK) printf("BACK\n");
 	}
 }
 
 void CharacterDemo::handleCustomEvent(StringHash eventType, VariantMap& eventData) { 
-	//printf("Custom event!!\n");
+	
 }
 
 void CharacterDemo::handleServerToClientObjectID(StringHash eventType, VariantMap& eventData) { 
 	clientObjectID_ = eventData[PLAYER_ID].GetUInt();
-	printf("Client ID: %i\n", clientObjectID_);
+	printf("ClientID: %i", clientObjectID_);
 }
 
 void CharacterDemo::handleConnectedToServer(StringHash eventType, VariantMap& eventData) {
 	std::cout << "Connected to server!!!!!!!!1" << std::endl;
-	
-	if (clientObjectID_) {
-		std::cout << "got ID:" << clientObjectID_ << std::endl;
-		Node* player = scene_->GetNode(clientObjectID_);
-		if (!player) std::cout << "not got player" << std::endl;
-	}
 } 
