@@ -353,25 +353,25 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 		if (input->GetKeyPress(KEY_L) && gs != SERVER) {
 			l_flashlight->SetEnabled(!l_flashlight->IsEnabled());
 		}
-		if (input->GetKeyPress(KEY_N)) {
-			File saveFile(context_, GetSubsystem<FileSystem>()->GetProgramDir() + "Data/Scenes/map.xml", FILE_WRITE);
-			scene_->SaveXML(saveFile);
-		}
-		if (input->GetKeyPress(KEY_B)) {
-			File loadFile(context_, GetSubsystem<FileSystem>()->GetProgramDir() + "Data/Scenes/map.xml", FILE_READ);
-			scene_->LoadXML(loadFile);
-		}
 		if (gs != CLIENT) {
+
 			bS.Update(timeStep);
+
+			if (input->GetKeyPress(KEY_N)) {
+				File saveFile(context_, GetSubsystem<FileSystem>()->GetProgramDir() + "Data/Scenes/map.xml", FILE_WRITE);
+				scene_->SaveXML(saveFile);
+			}
+			if (input->GetKeyPress(KEY_B)) {
+				File loadFile(context_, GetSubsystem<FileSystem>()->GetProgramDir() + "Data/Scenes/map.xml", FILE_READ);
+				scene_->LoadXML(loadFile);
+			}
 		}
 
 		if (clientObjectID_) {
 			Node* playerNode = this->scene_->GetNode(clientObjectID_);
 			if (playerNode) {
 				cameraNode_->SetPosition(playerNode->GetPosition());
-			} else {
-				std::cout << "no player" << std::endl;
-			}
+			} 
 		}
 		
 	}
@@ -383,17 +383,19 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 }
 
 void CharacterDemo::HandleCollision(StringHash eventType, VariantMap& eventData) {
-	using namespace NodeCollision;
-	auto* collided = static_cast<RigidBody*>(eventData[P_BODY].GetPtr());
-	auto* collided2 = static_cast<RigidBody*>(eventData[P_OTHERBODY].GetPtr());
+	if (gs != CLIENT && gs != NONE) {
+		using namespace NodeCollision;
+		auto* collided = static_cast<RigidBody*>(eventData[P_BODY].GetPtr());
+		auto* collided2 = static_cast<RigidBody*>(eventData[P_OTHERBODY].GetPtr());
 
-	if (collided2->GetNode()->GetName() == "Missile") {
-		collided2->GetNode()->Remove();
-		missileCount--;
-		if (collided->GetNode()->GetName().Contains("Boid_", false)) {
-			//bS.boidList.erase(bS.boidList.begin() + collided->GetNode()->GetVar("boid_number").GetInt());
-			collided->GetNode()->SetEnabled(false);
-			//std::cout << "erased " << collided->GetNode()->GetVar("boid_number").GetInt() << std::endl;
+		if (collided2->GetNode()->GetName() == "Missile") {
+			collided2->GetNode()->Remove();
+			missileCount--;
+			if (collided->GetNode()->GetName().Contains("Boid_", false)) {
+				//bS.boidList.erase(bS.boidList.begin() + collided->GetNode()->GetVar("boid_number").GetInt());
+				collided->GetNode()->SetEnabled(false);
+				//std::cout << "erased " << collided->GetNode()->GetVar("boid_number").GetInt() << std::endl;
+			}
 		}
 	}
 }
