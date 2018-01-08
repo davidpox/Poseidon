@@ -132,6 +132,7 @@ private:
 	Terrain* t_terrain;
 	bool menuVisible = true;
 	bool drawDebug_;
+	float MOVE_SPEED = 20.0f;
 
 	// MISSILES
 	const int MAX_MISSLES;

@@ -304,7 +304,6 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 	float timeStep = eventData[P_TIMESTEP].GetFloat();
 	if (GetSubsystem<UI>()->GetFocusElement()) return;
 	Input* input = GetSubsystem<Input>();
-	float MOVE_SPEED = 20.0f;
 	const float MOUSE_SENSITIVITY = 0.1f;
 	IntVector2 mouseMove = input->GetMouseMove();
 	if (!ui->GetCursor()->IsVisible() && scene_ != nullptr && gs != NONE) {
@@ -364,6 +363,15 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 		}
 		if (gs != CLIENT) {
 			bS.Update(timeStep);
+		}
+
+		if (clientObjectID_) {
+			Node* playerNode = this->scene_->GetNode(clientObjectID_);
+			if (playerNode) {
+				cameraNode_->SetPosition(playerNode->GetPosition());
+			} else {
+				std::cout << "no player" << std::endl;
+			}
 		}
 		
 	}
@@ -538,11 +546,18 @@ void CharacterDemo::ProcessClientControls() {
 	const Vector<SharedPtr<Connection>>& connections = network->GetClientConnections();
 	for (unsigned i = 0; i < connections.Size(); ++i) {
 		Connection* connection = connections[i];
+		
+		Node* playerNode = serverObjects_[connection];
+		if(!playerNode) continue;
+
+		RigidBody* body = playerNode->GetComponent<RigidBody>();
 		const Controls& controls = connection->GetControls();
-		if(controls.buttons_ & CTRL_FORWARD) printf("FORWARD\n");
-		if (controls.buttons_ & CTRL_LEFT) printf("LEFT\n");
-		if (controls.buttons_ & CTRL_RIGHT) printf("RIGHT\n");
-		if (controls.buttons_ & CTRL_BACK) printf("BACK\n");
+		Quaternion rotation(0.0f, controls.yaw_, 0.0f);
+
+		if(controls.buttons_ & CTRL_FORWARD) n_sub->Translate(Vector3::FORWARD * 1.0f);
+		if (controls.buttons_ & CTRL_LEFT) n_sub->Translate(Vector3::LEFT * 1.0f);
+		if (controls.buttons_ & CTRL_RIGHT) n_sub->Translate(Vector3::RIGHT * 1.0f);
+		if (controls.buttons_ & CTRL_BACK) n_sub->Translate(Vector3::BACK * 1.0f);
 	}
 }
 
