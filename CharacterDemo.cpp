@@ -499,6 +499,7 @@ void CharacterDemo::handleDisconnect(StringHash eventType, VariantMap& eventData
 }
 
 void CharacterDemo::handleClientConnected(StringHash eventType, VariantMap& eventData) { 
+	printf("Client Connected!");
 	using namespace ClientConnected;
 	Connection* newConnection = static_cast<Connection*>(eventData[P_CONNECTION].GetPtr());
 	newConnection->SetScene(scene_);
@@ -516,7 +517,7 @@ void CharacterDemo::handlePhysicsPreStep(StringHash eventType, VariantMap& event
 	Network* network = GetSubsystem<Network>();
 	Connection* serverConnection = network->GetServerConnection();
 	if (serverConnection) {
-		serverConnection->SetPosition(n_sub->GetPosition());
+		//serverConnection->SetPosition(n_sub->GetPosition());
 		serverConnection->SetControls(FromClientToServerControls());
 
 		VariantMap remoteEventData;
@@ -529,10 +530,19 @@ void CharacterDemo::handlePhysicsPreStep(StringHash eventType, VariantMap& event
 
 void CharacterDemo::handleClientFinishedLoading(StringHash eventType, VariantMap& eventData) { 
 	printf("Client has finished loading up the scene from the server!\n");
+	if (clientObjectID_ == 0) {
+		Network* network = GetSubsystem<Network>();
+		Connection* serverConnection = network->GetServerConnection();
+		if (serverConnection) {
+			VariantMap remoteEventData;
+			remoteEventData[PLAYER_ID] = 0;
+			serverConnection->SendRemoteEvent(E_CLIENTISREADY, true, remoteEventData);
+		}
+	}
 }
 
 void CharacterDemo::handleCustomEvent(StringHash eventType, VariantMap& eventData) { 
-	printf("Custom event!!\n");
+	//printf("Custom event!!\n");
 }
 
 Controls CharacterDemo::FromClientToServerControls() { 
@@ -557,7 +567,7 @@ void CharacterDemo::handleServerToClientObjectID(StringHash eventType, VariantMa
 }
 
 void CharacterDemo::handleClientToServerReadyToStart(StringHash eventType, VariantMap& eventData) { 
-	printf("Event sent by the Client and running on the SErver: Client is ready to start the game!\n");
+	printf("Event sent by the Client and running on the Server: Client is ready to start the game!\n");
 	using namespace ClientConnected;
 	Connection* newConnection = static_cast<Connection*>(eventData[P_CONNECTION].GetPtr());
 	Node* newObject = CreateCharacter();
