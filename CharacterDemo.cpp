@@ -157,7 +157,7 @@ void CharacterDemo::CreateClientScene() {
 	zone->SetFogEnd(90.0f);
 	zone->SetBoundingBox(BoundingBox(-1000.0f, 1000.0f));
 
-	Node* n_skybox = scene_->CreateChild("Skybox");
+	Node* n_skybox = scene_->CreateChild("Skybox", LOCAL);
 	Skybox* s_skybox = n_skybox->CreateComponent<Skybox>();
 	s_skybox->SetModel(cache->GetResource<Model>("Models/Box.mdl"));
 	s_skybox->SetMaterial(cache->GetResource<Material>("Materials/Skybox.xml"));
@@ -310,12 +310,12 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 	float MOVE_SPEED = 20.0f;
 	const float MOUSE_SENSITIVITY = 0.1f;
 	IntVector2 mouseMove = input->GetMouseMove();
-	if (!ui->GetCursor()->IsVisible() && scene_ != nullptr && gs == SINGLEPLAYER) {
+	if (!ui->GetCursor()->IsVisible() && scene_ != nullptr && gs != NONE) {
 		yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
 		pitch_ += MOUSE_SENSITIVITY * mouseMove.y_;
 		pitch_ = Clamp(pitch_, -90.0f, 90.0f);
 
-		if (clientObjectID_) {
+		if (gs == SINGLEPLAYER) {
 			Node* playerNode = scene_->GetNode(clientObjectID_);
 			if (playerNode) {
 				n_sub->SetRotation(Quaternion(pitch_, yaw_, 0.0f));
@@ -330,28 +330,27 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 				cameraNode_->SetPosition(n_sub->GetPosition());
 				cameraNode_->SetRotation(n_sub->GetRotation());
 			}
-		}
-
-
-		//TODO somehow get rigidbodies to do this???
-		Vector3 pos = n_sub->GetPosition();
-		if ((pos.y_ - 2.0f) < t_terrain->GetHeight(pos)) {
-			n_sub->SetPosition(Vector3(pos.x_, t_terrain->GetHeight(pos) + 2.0f, pos.z_));
-		}
-		if ((pos.x_ - 2.0f) > 204.8f) {
-			n_sub->SetPosition(Vector3(pos.x_ - 2.0f, pos.y_, pos.z_));
-		}
-		if ((pos.x_ - 2.0f) < -204.8f) {
-			n_sub->SetPosition(Vector3(pos.x_ + 2.0f, pos.y_, pos.z_));
-		}
-		if ((pos.z_ - 2.0f) > 102.4f) {
-			n_sub->SetPosition(Vector3(pos.x_, pos.y_, pos.z_ - 2.0f));
-		}
-		if ((pos.z_ - 2.0f) < -102.4f) {
-			n_sub->SetPosition(Vector3(pos.x_, pos.y_, pos.z_ + 2.0f));
-		}
-		if ((pos.y_ + 2.0f) > 90.0f) {
-			n_sub->SetPosition(Vector3(pos.x_, pos.y_ - 2.0f, pos.z_));
+		
+			//TODO somehow get rigidbodies to do this???
+			Vector3 pos = n_sub->GetPosition();
+			if ((pos.y_ - 2.0f) < t_terrain->GetHeight(pos)) {
+				n_sub->SetPosition(Vector3(pos.x_, t_terrain->GetHeight(pos) + 2.0f, pos.z_));
+			}
+			if ((pos.x_ - 2.0f) > 204.8f) {
+				n_sub->SetPosition(Vector3(pos.x_ - 2.0f, pos.y_, pos.z_));
+			}
+			if ((pos.x_ - 2.0f) < -204.8f) {
+				n_sub->SetPosition(Vector3(pos.x_ + 2.0f, pos.y_, pos.z_));
+			}
+			if ((pos.z_ - 2.0f) > 102.4f) {
+				n_sub->SetPosition(Vector3(pos.x_, pos.y_, pos.z_ - 2.0f));
+			}
+			if ((pos.z_ - 2.0f) < -102.4f) {
+				n_sub->SetPosition(Vector3(pos.x_, pos.y_, pos.z_ + 2.0f));
+			}
+			if ((pos.y_ + 2.0f) > 90.0f) {
+				n_sub->SetPosition(Vector3(pos.x_, pos.y_ - 2.0f, pos.z_));
+			}
 		}
 
 		if (input->GetKeyPress(KEY_P)) {
