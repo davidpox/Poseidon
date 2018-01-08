@@ -107,7 +107,8 @@ void CharacterDemo::CreateServerScene()
 	cameraNode_ = scene_->CreateChild("Camera", LOCAL);
 	//cameraNode_->SetRotation(Quaternion(0.0f, 90.0f, 0.0f));
 	Camera* camera = cameraNode_->CreateComponent<Camera>();
-	cameraNode_->SetPosition(Vector3(0.0f, 0.0f, 0.0f));
+	cameraNode_->SetPosition(Vector3(0.0f, 90.0f, 0.0f));
+	cameraNode_->SetRotation(Quaternion(90.0f, 0.0f, 0.0f));
 	camera->SetFarClip(750.0f);
 
 	GetSubsystem<Renderer>()->SetViewport(0, new Viewport(context_, scene_, camera));
@@ -128,7 +129,7 @@ void CharacterDemo::CreateServerScene()
 
 	bS.Initialise(cache, scene_);
 
-	CreateCharacter();
+	//CreateCharacter();
 	CreateEnvironemnt();
 }
 
@@ -143,7 +144,7 @@ void CharacterDemo::CreateClientScene() {
 	cameraNode_ = scene_->CreateChild("Camera", LOCAL);
 	//cameraNode_->SetRotation(Quaternion(0.0f, 90.0f, 0.0f));
 	Camera* camera = cameraNode_->CreateComponent<Camera>();
-	cameraNode_->SetPosition(Vector3(0.0f, 0.0f, 0.0f));
+	cameraNode_->SetPosition(Vector3(0.0f, 00.0f, 0.0f));
 	camera->SetFarClip(750.0f);
 
 	GetSubsystem<Renderer>()->SetViewport(0, new Viewport(context_, scene_, camera));
@@ -165,7 +166,6 @@ void CharacterDemo::CreateClientScene() {
 	if (gs == SINGLEPLAYER) {
 		bS.Initialise(cache, scene_);
 	}
-	CreateCharacter();
 	CreateEnvironemnt();
 }
 
@@ -181,7 +181,6 @@ Node* CharacterDemo::CreateCharacter()
 	rb_sub->SetCollisionLayer(4);
 	CollisionShape* cs_sub = n_sub->CreateComponent<CollisionShape>();
 	cs_sub->SetBox(Vector3(16.0f, 12.0f, 50.0f));
-	//cs_sub->SetPosition(Vector3(0.0f, 0.0f, -5.0f));
 
 	// CREATE PLAYER LIGHT
 	Node* n_flashlight = n_sub->CreateChild("Flash Light");
@@ -286,14 +285,11 @@ void CharacterDemo::SubscribeToEvents()
 
 	SubscribeToEvent(E_CLIENTCONNECTED, URHO3D_HANDLER(CharacterDemo, handleClientConnected));
 	SubscribeToEvent(E_CLIENTDISCONNECTED, URHO3D_HANDLER(CharacterDemo, handleClientDisconnected));
+	SubscribeToEvent(E_SERVERCONNECTED, URHO3D_HANDLER(CharacterDemo, handleConnectedToServer));
 	SubscribeToEvent(E_PHYSICSPRESTEP, URHO3D_HANDLER(CharacterDemo, handlePhysicsPreStep));
-	//SubscribeToEvent(E_CLIENTSCENELOADED, URHO3D_HANDLER(CharacterDemo, handleClientFinishedLoading));
 
-	SubscribeToEvent(E_CUSTOMEVENT, URHO3D_HANDLER(CharacterDemo, handleCustomEvent));
-	GetSubsystem<Network>()->RegisterRemoteEvent(E_CUSTOMEVENT);
-
-	//SubscribeToEvent(E_CLIENTISREADY, URHO3D_HANDLER(CharacterDemo, handleClientToServerReadyToStart));
-	//GetSubsystem<Network>()->RegisterRemoteEvent(E_CLIENTISREADY);
+	//SubscribeToEvent(E_CUSTOMEVENT, URHO3D_HANDLER(CharacterDemo, handleCustomEvent));
+	//GetSubsystem<Network>()->RegisterRemoteEvent(E_CUSTOMEVENT);
 
 	SubscribeToEvent(E_CLIENTOBJECTAUTHORITY, URHO3D_HANDLER(CharacterDemo, handleServerToClientObjectID));
 	GetSubsystem<Network>()->RegisterRemoteEvent(E_CLIENTOBJECTAUTHORITY);
@@ -315,7 +311,7 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 		pitch_ += MOUSE_SENSITIVITY * mouseMove.y_;
 		pitch_ = Clamp(pitch_, -90.0f, 90.0f);
 
-		if (gs == SINGLEPLAYER) {
+		if (gs == SINGLEPLAYER ) {
 			Node* playerNode = scene_->GetNode(clientObjectID_);
 			if (playerNode) {
 				n_sub->SetRotation(Quaternion(pitch_, yaw_, 0.0f));
@@ -356,7 +352,7 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 		if (input->GetKeyPress(KEY_P)) {
 			drawDebug_ = !drawDebug_;
 		}
-		if (input->GetKeyPress(KEY_L)) {
+		if (input->GetKeyPress(KEY_L) && gs != SERVER) {
 			l_flashlight->SetEnabled(!l_flashlight->IsEnabled());
 		}
 		if (input->GetKeyPress(KEY_N)) {
@@ -491,7 +487,6 @@ void CharacterDemo::handleConnect(StringHash eventType, VariantMap& eventData) {
 	network->Connect(ip, SERVER_PORT, scene_);
 	window_->SetVisible(false);
 	ui->GetCursor()->SetVisible(false);
-
 }
 
 void CharacterDemo::handleCreateServer(StringHash eventType, VariantMap& eventData) {
@@ -530,7 +525,7 @@ void CharacterDemo::handleClientConnected(StringHash eventType, VariantMap& even
 
 	Node* newNode = CreateCharacter();
 	serverObjects_[newConnection] = newNode;
-	
+
 	VariantMap remoteEventData;
 	remoteEventData[PLAYER_ID] = newNode->GetID();
 	newConnection->SendRemoteEvent(E_CLIENTOBJECTAUTHORITY, true, remoteEventData);
@@ -546,8 +541,8 @@ void CharacterDemo::handleClientDisconnected(StringHash eventType, VariantMap& e
 }
 
 void CharacterDemo::handlePhysicsPreStep(StringHash eventType, VariantMap& eventData) { 
-	Network* network = GetSubsystem<Network>();
 	UI* ui = GetSubsystem<UI>();
+	Network* network = GetSubsystem<Network>();
 	Connection* serverConnection = network->GetServerConnection();
 
 	if (serverConnection) {
@@ -558,24 +553,25 @@ void CharacterDemo::handlePhysicsPreStep(StringHash eventType, VariantMap& event
 			controls.Set(CTRL_BACK, input->GetKeyDown(KEY_S));
 			controls.Set(CTRL_LEFT, input->GetKeyDown(KEY_A));
 			controls.Set(CTRL_RIGHT, input->GetKeyDown(KEY_D));
-			controls.Set(CTRL_RUN, input->GetKeyDown(KEY_SHIFT));
-			controls.Set(CTRL_SHOOT, input->GetMouseButtonPress(MOUSEB_LEFT));
+			//controls.Set(CTRL_RUN, input->GetKeyDown(KEY_SHIFT));
+			//controls.Set(CTRL_SHOOT, input->GetMouseButtonPress(MOUSEB_LEFT));
 			controls.yaw_ = yaw_;
-			controls.pitch_ = pitch_;
+			//controls.pitch_ = pitch_;
 		}
-		serverConnection->SetPosition(cameraNode_->GetPosition());
+		cameraNode_->SetPosition(serverConnection->GetPosition());
 		serverConnection->SetControls(controls);
 
-		VariantMap remoteEventData;
-		remoteEventData["aValueRemoteValue"] = 0;
-		serverConnection->SendRemoteEvent(E_CUSTOMEVENT, true, remoteEventData);
+		//VariantMap remoteEventData;
+		//remoteEventData["aValueRemoteValue"] = 0;
+		//serverConnection->SendRemoteEvent(E_CUSTOMEVENT, true, remoteEventData);
+
 	} else if (network->IsServerRunning()) {
 		Network* network = GetSubsystem<Network>();
 		const Vector<SharedPtr<Connection>> &connections = network->GetClientConnections();
 		for (unsigned i = 0; i < connections.Size(); ++i) {
 			Connection* connection = connections[i];
 			Node* playerNode = serverObjects_[connection];
-			float MOVE_SPEED = 20.0f;
+			float MOVE_SPEED = 1.0f;
 
 			if (!playerNode) continue;
 
@@ -591,21 +587,10 @@ void CharacterDemo::handlePhysicsPreStep(StringHash eventType, VariantMap& event
 			if (controls.buttons_ & CTRL_SHOOT) {
 				//todo
 			}
-
+			//std::cout << playerNode->GetPosition().x_ << " " << playerNode->GetPosition().z_ << std::endl;
 		}
 	}
 }
-
-//void CharacterDemo::handleClientFinishedLoading(StringHash eventType, VariantMap& eventData) { 
-//	printf("Client has finished loading up the scene from the server!\n");
-//	Network* network = GetSubsystem<Network>();
-//	Connection* serverConnection = network->GetServerConnection();
-//	if (serverConnection) {
-//		VariantMap remoteEventData;
-//		remoteEventData[PLAYER_ID] = 0;
-//		serverConnection->SendRemoteEvent(E_CLIENTISREADY, true, remoteEventData);
-//	}
-//}
 
 void CharacterDemo::handleCustomEvent(StringHash eventType, VariantMap& eventData) { 
 	//printf("Custom event!!\n");
@@ -616,17 +601,12 @@ void CharacterDemo::handleServerToClientObjectID(StringHash eventType, VariantMa
 	printf("Client ID: %i\n", clientObjectID_);
 }
 
-//void CharacterDemo::handleClientToServerReadyToStart(StringHash eventType, VariantMap& eventData) { 
-//	printf("Event sent by the Client and running on the Server: Client is ready to start the game!\n");
-//	using namespace ClientConnected;
-//	Connection* newConnection = static_cast<Connection*>(eventData[P_CONNECTION].GetPtr());
-//	Node* newObject = CreateCharacter();
-//	serverObjects_[newConnection] = newObject;
-//	VariantMap remoteEventData;
-//	remoteEventData[PLAYER_ID] = newObject->GetID();
-//	newConnection->SendRemoteEvent(E_CLIENTOBJECTAUTHORITY, true, remoteEventData);
-//}
-
-void CharacterDemo::processClientControls() {
-
-}
+void CharacterDemo::handleConnectedToServer(StringHash eventType, VariantMap& eventData) {
+	std::cout << "Connected to server!!!!!!!!1" << std::endl;
+	
+	if (clientObjectID_) {
+		std::cout << "got ID:" << clientObjectID_ << std::endl;
+		Node* player = scene_->GetNode(clientObjectID_);
+		if (!player) std::cout << "not got player" << std::endl;
+	}
+} 

@@ -105,15 +105,11 @@ private:
 	void handleClientConnected(StringHash eventType, VariantMap& eventData);
 	void handleClientDisconnected(StringHash eventType, VariantMap& eventData);
 	void handlePhysicsPreStep(StringHash eventType, VariantMap& eventData);
-	void handleClientFinishedLoading(StringHash eventType, VariantMap& eventData);
 	void handleCustomEvent(StringHash eventType, VariantMap& eventData);
-
-	Controls FromClientToServerControls();
+	void handleConnectedToServer(StringHash evetnType, VariantMap& eventData);
 	unsigned clientObjectID_ = 0;
 	HashMap<Connection*, WeakPtr<Node>> serverObjects_;
 	void handleServerToClientObjectID(StringHash eventType, VariantMap& eventData);
-	void handleClientToServerReadyToStart(StringHash eventType, VariantMap& eventData);
-	void processClientControls();
 
     /// Touch utility object.
     SharedPtr<Touch> touch_;
