@@ -107,14 +107,14 @@ void CharacterDemo::CreateServerScene()
 	cameraNode_ = scene_->CreateChild("Camera", LOCAL);
 	//cameraNode_->SetRotation(Quaternion(0.0f, 90.0f, 0.0f));
 	Camera* camera = cameraNode_->CreateComponent<Camera>();
-	cameraNode_->SetPosition(Vector3(0.0f, 90.0f, 0.0f));
+	cameraNode_->SetPosition(Vector3(0.0f, 10.0f, 0.0f));
 	cameraNode_->SetRotation(Quaternion(90.0f, 0.0f, 0.0f));
 	camera->SetFarClip(750.0f);
 
 	GetSubsystem<Renderer>()->SetViewport(0, new Viewport(context_, scene_, camera));
 
 	// ZONE & FOG CREATION
-	Node* zoneNode = scene_->CreateChild("Zone", LOCAL);
+	Node* zoneNode = scene_->CreateChild("Zone");
 	Zone* zone = zoneNode->CreateComponent<Zone>();
 	zone->SetAmbientColor(Color(0.15f, 0.15f, 0.15f));
 	zone->SetFogColor(Color(0.09f, 0.301f, 0.647f));
@@ -122,7 +122,7 @@ void CharacterDemo::CreateServerScene()
 	zone->SetFogEnd(90.0f);
 	zone->SetBoundingBox(BoundingBox(-1000.0f, 1000.0f));
 
-	Node* n_skybox = scene_->CreateChild("Skybox", LOCAL);
+	Node* n_skybox = scene_->CreateChild("Skybox");
 	Skybox* s_skybox = n_skybox->CreateComponent<Skybox>();
 	s_skybox->SetModel(cache->GetResource<Model>("Models/Box.mdl"));
 	s_skybox->SetMaterial(cache->GetResource<Material>("Materials/Skybox.xml"));
@@ -175,8 +175,8 @@ Node* CharacterDemo::CreateCharacter()
 	n_sub->SetPosition(Vector3(0.0f, 5.0f, 0.0f));
 	n_sub->SetScale(Vector3(0.4f, 0.4f, 0.4f));
 	StaticModel* m_sub = n_sub->CreateComponent<StaticModel>();
-	m_sub->SetModel(cache->GetResource<Model>("Models/Submarine.mdl"));
-	m_sub->ApplyMaterialList();
+	m_sub->SetModel(cache->GetResource<Model>("Models/Jack.mdl"));
+	//m_sub->ApplyMaterialList();
 	RigidBody* rb_sub = n_sub->CreateComponent<RigidBody>();
 	rb_sub->SetCollisionLayer(4);
 	CollisionShape* cs_sub = n_sub->CreateComponent<CollisionShape>();
@@ -200,7 +200,7 @@ Node* CharacterDemo::CreateCharacter()
 void CharacterDemo::CreateEnvironemnt()
 {
 	// CREATE TERRAIN
-	Node* n_terrain = scene_->CreateChild("Terrrain");
+	Node* n_terrain = scene_->CreateChild("Terrrain", LOCAL);
 	n_terrain->SetPosition(Vector3(0.0f, -5.0f, 0.0f));
 	t_terrain = n_terrain->CreateComponent<Terrain>();
 	t_terrain->SetSpacing(Vector3(0.4f, 0.05f, 0.2f));
@@ -306,12 +306,15 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 	Input* input = GetSubsystem<Input>();
 	const float MOUSE_SENSITIVITY = 0.1f;
 	IntVector2 mouseMove = input->GetMouseMove();
+	/*
 	if (!ui->GetCursor()->IsVisible() && scene_ != nullptr && gs != NONE) {
+
 		yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
 		pitch_ += MOUSE_SENSITIVITY * mouseMove.y_;
 		pitch_ = Clamp(pitch_, -90.0f, 90.0f);
 
 		if (gs == SINGLEPLAYER ) {
+			//std::cout << "updating in singleplayer" << std::endl;
 			n_sub->SetRotation(Quaternion(pitch_, yaw_, 0.0f));
 			if (input->GetKeyDown(KEY_SHIFT)) MOVE_SPEED *= 10.0f;
 			if (input->GetKeyDown(KEY_W)) n_sub->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
@@ -346,6 +349,7 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 				n_sub->SetPosition(Vector3(pos.x_, pos.y_ - 2.0f, pos.z_));
 			}
 		}
+		
 
 		if (input->GetKeyPress(KEY_P)) {
 			drawDebug_ = !drawDebug_;
@@ -354,7 +358,7 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 			l_flashlight->SetEnabled(!l_flashlight->IsEnabled());
 		}
 		if (gs != CLIENT) {
-
+			//std::cout << "updating in NOT client" << std::endl;	//called on server
 			bS.Update(timeStep);
 
 			if (input->GetKeyPress(KEY_N)) {
@@ -366,66 +370,89 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 				scene_->LoadXML(loadFile);
 			}
 		}
-
-		if (clientObjectID_) {
-			Node* playerNode = this->scene_->GetNode(clientObjectID_);
-			if (playerNode) {
-				cameraNode_->SetPosition(playerNode->GetPosition());
-			} 
-		}
 		
+
 	}
+	*/
+
+	if (clientObjectID_) {
+		//std::cout << "updating playernode" << std::endl;			//called on client
+		Node* playerNode = this->scene_->GetNode(clientObjectID_);
+		if (playerNode) {
+			cameraNode_->SetPosition(playerNode->GetPosition());
+		}
+	}
+
 	if (input->GetKeyPress(KEY_M)) {
 		menuVisible = !menuVisible;
 		ui->GetCursor()->SetVisible(menuVisible);
 		window_->SetVisible(menuVisible);
 	}
+	if (gs == SERVER) {
+		//std::cout << "updaing server" << std::endl;			//called on server
+		Network* network = GetSubsystem<Network>();
+		const Vector<SharedPtr<Connection>>& connections = network->GetClientConnections();
+		for (unsigned i = 0; i < connections.Size(); ++i) {
+			Connection* connection = connections[i];
+
+			Node* playerNode = serverObjects_[connection];
+			if (!playerNode) continue;
+
+			const Controls& controls = connection->GetControls();
+			Quaternion rotation(0.0f, controls.yaw_, 0.0f);
+
+			if (controls.buttons_ & CTRL_FORWARD) playerNode->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
+			if (controls.buttons_ & CTRL_LEFT) playerNode->Translate(Vector3::LEFT * MOVE_SPEED * timeStep);
+			if (controls.buttons_ & CTRL_RIGHT) playerNode->Translate(Vector3::RIGHT * MOVE_SPEED * timeStep);
+			if (controls.buttons_ & CTRL_BACK) playerNode->Translate(Vector3::BACK * MOVE_SPEED * timeStep);
+		}
+	}
 }
 
 void CharacterDemo::HandleCollision(StringHash eventType, VariantMap& eventData) {
-	if (gs != CLIENT && gs != NONE) {
-		using namespace NodeCollision;
-		auto* collided = static_cast<RigidBody*>(eventData[P_BODY].GetPtr());
-		auto* collided2 = static_cast<RigidBody*>(eventData[P_OTHERBODY].GetPtr());
+	//if (gs != CLIENT && gs != NONE) {
+	//	using namespace NodeCollision;
+	//	auto* collided = static_cast<RigidBody*>(eventData[P_BODY].GetPtr());
+	//	auto* collided2 = static_cast<RigidBody*>(eventData[P_OTHERBODY].GetPtr());
 
-		if (collided2->GetNode()->GetName() == "Missile") {
-			collided2->GetNode()->Remove();
-			missileCount--;
-			if (collided->GetNode()->GetName().Contains("Boid_", false)) {
-				//bS.boidList.erase(bS.boidList.begin() + collided->GetNode()->GetVar("boid_number").GetInt());
-				collided->GetNode()->SetEnabled(false);
-				//std::cout << "erased " << collided->GetNode()->GetVar("boid_number").GetInt() << std::endl;
-			}
-		}
-	}
+	//	if (collided2->GetNode()->GetName() == "Missile") {
+	//		collided2->GetNode()->Remove();
+	//		missileCount--;
+	//		if (collided->GetNode()->GetName().Contains("Boid_", false)) {
+	//			//bS.boidList.erase(bS.boidList.begin() + collided->GetNode()->GetVar("boid_number").GetInt());
+	//			collided->GetNode()->SetEnabled(false);
+	//			//std::cout << "erased " << collided->GetNode()->GetVar("boid_number").GetInt() << std::endl;
+	//		}
+	//	}
+	//}
 }
 
 void CharacterDemo::HandlePostUpdate(StringHash eventType, VariantMap& eventData) {
-	if (gs != NONE) {
-		DebugRenderer* dRenderer = scene_->GetComponent<DebugRenderer>();
-		if (drawDebug_) {
-			PhysicsWorld* pW_ = scene_->GetComponent<PhysicsWorld>();
-			pW_->DrawDebugGeometry(dRenderer, true);
-		}
-	}
+	//if (gs != NONE) {
+	//	DebugRenderer* dRenderer = scene_->GetComponent<DebugRenderer>();
+	//	if (drawDebug_) {
+	//		PhysicsWorld* pW_ = scene_->GetComponent<PhysicsWorld>();
+	//		pW_->DrawDebugGeometry(dRenderer, true);
+	//	}
+	//}
 }
 
 void CharacterDemo::spawnMissle() {
-	if (missileCount < MAX_MISSLES) {
-		missileCount++;
-		missileLeftOrRight++;
-		missle t = missle();
-		t.Initialise(cache, scene_);
-		
-		t.pRigidBody->SetRotation(n_sub->GetRotation());
-		if (missileLeftOrRight == 1) {
-			t.pRigidBody->SetPosition((n_sub->GetPosition() + (n_sub->GetRotation() * Vector3(-4.0f, -0.6f, 9.0f))));
-		} else {
-			t.pRigidBody->SetPosition((n_sub->GetPosition() + (n_sub->GetRotation() * Vector3(4.0f, -0.6f, 9.0f))));
-			missileLeftOrRight = 0;
-		}
-		t.pRigidBody->SetLinearVelocity(n_sub->GetDirection() * 100.0f);
-	}
+	//if (missileCount < MAX_MISSLES) {
+	//	missileCount++;
+	//	missileLeftOrRight++;
+	//	missle t = missle();
+	//	t.Initialise(cache, scene_);
+	//	
+	//	t.pRigidBody->SetRotation(n_sub->GetRotation());
+	//	if (missileLeftOrRight == 1) {
+	//		t.pRigidBody->SetPosition((n_sub->GetPosition() + (n_sub->GetRotation() * Vector3(-4.0f, -0.6f, 9.0f))));
+	//	} else {
+	//		t.pRigidBody->SetPosition((n_sub->GetPosition() + (n_sub->GetRotation() * Vector3(4.0f, -0.6f, 9.0f))));
+	//		missileLeftOrRight = 0;
+	//	}
+	//	t.pRigidBody->SetLinearVelocity(n_sub->GetDirection() * 100.0f);
+	//}
 }
 
 void CharacterDemo::CreateMainMenu() {
@@ -506,7 +533,19 @@ void CharacterDemo::handleCreateServer(StringHash eventType, VariantMap& eventDa
 }
 
 void CharacterDemo::handleDisconnect(StringHash eventType, VariantMap& eventData) {
+	Network* network = GetSubsystem<Network>();
+	Connection* connection = network->GetServerConnection();
 
+	if (connection) {
+		connection->Disconnect();
+		scene_->Clear(true, false);
+		clientObjectID_ = 0;
+		gs = NONE;
+	} else if (network->IsServerRunning()) {
+		network->StopServer();
+		scene_->Clear(true, false);
+		gs = NONE;
+	}
 }
 
 void CharacterDemo::handleClientConnected(StringHash eventType, VariantMap& eventData) { 
@@ -544,23 +583,7 @@ Controls CharacterDemo::FromClientToServerControls() {
 }
 
 void CharacterDemo::ProcessClientControls() {
-	Network* network = GetSubsystem<Network>();
-	const Vector<SharedPtr<Connection>>& connections = network->GetClientConnections();
-	for (unsigned i = 0; i < connections.Size(); ++i) {
-		Connection* connection = connections[i];
-		
-		Node* playerNode = serverObjects_[connection];
-		if(!playerNode) continue;
 
-		RigidBody* body = playerNode->GetComponent<RigidBody>();
-		const Controls& controls = connection->GetControls();
-		Quaternion rotation(0.0f, controls.yaw_, 0.0f);
-
-		if(controls.buttons_ & CTRL_FORWARD) playerNode->Translate(Vector3::FORWARD * 1.0f);
-		if (controls.buttons_ & CTRL_LEFT) playerNode->Translate(Vector3::LEFT * 1.0f);
-		if (controls.buttons_ & CTRL_RIGHT) playerNode->Translate(Vector3::RIGHT * 1.0f);
-		if (controls.buttons_ & CTRL_BACK) playerNode->Translate(Vector3::BACK * 1.0f);
-	}
 }
 
 void CharacterDemo::handleCustomEvent(StringHash eventType, VariantMap& eventData) { 
