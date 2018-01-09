@@ -53,10 +53,10 @@ CheckBox* menu::CreateCheckBox(int pHeight, Urho3D::Window* whichWindow) {
 Text* menu::CreateText(const String& text, int pHeight, Urho3D::Window* whichWindow, Font* font, int fontSize) {
 	Text* txt = whichWindow->CreateChild<Text>();
 	txt->SetMinHeight(16);
-	txt->SetText(text);
-	txt->SetFont(font);
-	txt->SetFontSize(fontSize);
 	txt->SetStyleAuto();
+	txt->SetText(text);
+	txt->SetFontSize(fontSize);
+	txt->SetFont(font);
 	txt->SetAlignment(HA_CENTER, VA_CENTER);
 
 	whichWindow->AddChild(txt);

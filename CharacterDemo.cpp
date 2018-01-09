@@ -53,6 +53,7 @@
 #include "Character.h"
 #include "CharacterDemo.h"
 #include "Touch.h"
+#include <Math.h>
 
 #include <Urho3D/UI/LineEdit.h>
 #include <Urho3D/UI/Button.h>
@@ -335,7 +336,7 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 	const float MOUSE_SENSITIVITY = 0.1f;
 	IntVector2 mouseMove = input->GetMouseMove();
 
-	if (!ui->GetCursor()->IsVisible() && scene_ != nullptr && gs != NONE) {
+	if (!ui->GetCursor()->IsVisible() && scene_ != nullptr && (gs != NONE && gs != WON && gs != LOST && gs != ENDED)) {
 
 		if (uiRoot_->GetChild("warningText", false)->IsVisible()) warningTextCounter += timeStep;
 
@@ -349,16 +350,20 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 
 		if (gs == SINGLEPLAYER ) {
 			if(!menuVisible) {
-				if(countdowntimer > 0) {
+				if(countdowntimer >= 0.0f) {
 					countdowntimer -= timeStep;
-					String min = (String)(countdowntimer / 60);
-					String sec = (String)(countdowntimer % 60);
-					timerText->SetText("0" + min + ":" + sec);// + ":" + (String)timeStep);
+					String min = (String)((int)countdowntimer / 60 );
+					String sec = (String)((int)countdowntimer % 60);
+					if ((int)countdowntimer % 60 < 10) timerText->SetText("0" + min + ":0" + sec);
+					else timerText->SetText("0" + min + ":" + sec);
+				}
+				if (countdowntimer <= 0.0f)  {
+					gs = ENDED;
+					causeofdeath = "The time ran out!";
 				}
 			}
 
 			Node* player = scene_->GetNode(playerNodeID);
-			//std::cout << "updating in singleplayer" << std::endl;
 			player->SetRotation(Quaternion(pitch_, yaw_, 0.0f));
 			if (input->GetKeyDown(KEY_SHIFT)) MOVE_SPEED *= 10.0f;
 			if (input->GetKeyDown(KEY_W)) player->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
@@ -433,7 +438,7 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 		}
 	}
 
-	if (input->GetKeyPress(KEY_M)) {
+	if (input->GetKeyPress(KEY_M) && gs != NONE && gs != WON && gs != LOST && gs != ENDED) {
 		menuVisible = !menuVisible;
 		if (gs == PAUSED) gs = SINGLEPLAYER;
 		else gs = PAUSED;
@@ -462,7 +467,7 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 }
 
 void CharacterDemo::HandleCollision(StringHash eventType, VariantMap& eventData) {
-	if (gs != CLIENT && gs != NONE) {
+	if (gs == SINGLEPLAYER || gs == SERVER) {
 		using namespace NodeCollision;
 		auto* collided = static_cast<RigidBody*>(eventData[P_BODY].GetPtr());
 		auto* collided2 = static_cast<RigidBody*>(eventData[P_OTHERBODY].GetPtr());
@@ -476,9 +481,11 @@ void CharacterDemo::HandleCollision(StringHash eventType, VariantMap& eventData)
 				if (playerHealth > 0) {
 					uiRoot_->GetChild("warningText", false)->SetVisible(true);
 					fishKilled++;
+					bS.boidsLeft--;
 					playerHealth -= 5;
-				}
+					if (playerHealth <= 0) causeofdeath = "YOU KILLED TOO MANY FISHIES :(\nHOW ARE YOU GOING TO FEED YOUR FAMILY?";
 				//std::cout << "erased " << collided->GetNode()->GetVar("boid_number").GetInt() << std::endl;
+				}
 			}
 		}
 
@@ -486,6 +493,7 @@ void CharacterDemo::HandleCollision(StringHash eventType, VariantMap& eventData)
 			if (collided2->GetNode()->GetName().Contains("Boid_", false)) {
 				collided2->GetNode()->SetEnabled(false);
 				fishCaught++;
+				bS.boidsLeft--;
 				Log::WriteRaw("Caught fish!! new fish count: " + (String)fishCaught);
 			}
 		}
@@ -509,7 +517,15 @@ void CharacterDemo::HandlePostUpdate(StringHash eventType, VariantMap& eventData
 
 			Text* fishCaughtText = (Text*)uiRoot_->GetChild("fishCaughtText", false);
 			fishCaughtText->SetText((String)fishCaught);
-			
+
+			if (playerHealth <= 0) gs = LOST;
+			if (bS.boidsLeft <= 0) gs = WON;
+		}
+		if (gs == ENDED || gs == WON || gs == LOST) {
+			UI* ui = GetSubsystem<UI>();
+			ui->Clear();
+			scene_->Clear(true, true);
+			CreateEndScreen();
 		}
 	}
 }
@@ -554,11 +570,11 @@ void CharacterDemo::CreateMainMenu() {
 	window_->SetStyleAuto();
 
 	Text* menuText = menu_->CreateText("MAIN MENU", 16, window_, font, 16);
-	menuText->SetColor(Color::BLACK);
+	menuText->SetColor(Color::WHITE);
 	Button* btnSingleplayer = menu_->CreateButton("SINGLEPLAYER", 24, window_, font);
 	
 	Text* serverText = menu_->CreateText("SERVER", 16, window_, font, 16);
-	serverText->SetColor(Color::BLACK);
+	serverText->SetColor(Color::WHITE);
 	leIPAddress = menu_->CreateLineEdit("", 24, window_, font);
 	Button* btnConnect = menu_->CreateButton("CONNECT", 24, window_, font);
 	Button* btnCreateServer = menu_->CreateButton("START SERVER", 24, window_, font);
@@ -574,8 +590,6 @@ void CharacterDemo::CreateMainMenu() {
 	SubscribeToEvent(btnCreateServer, E_RELEASED, URHO3D_HANDLER(CharacterDemo, handleCreateServer));
 	SubscribeToEvent(btnDisconnect, E_RELEASED, URHO3D_HANDLER(CharacterDemo, handleDisconnect));
 	window_->SetVisible(menuVisible);
-	//ui->GetCursor()->SetVisible(menuVisible);
-	std::cout << "End of createMenu" << std::endl;
 }
 
 void CharacterDemo::HandleQuit(StringHash eventType, VariantMap& eventData) {
@@ -585,6 +599,10 @@ void CharacterDemo::HandleQuit(StringHash eventType, VariantMap& eventData) {
 void CharacterDemo::StartSingleplayer(StringHash eventType, VariantMap& eventData) {
 	UI* ui = GetSubsystem<UI>();
 	gs = SINGLEPLAYER;
+	playerHealth = 5;
+	fishKilled = 0;
+	fishCaught = 0;
+	countdowntimer = 300.0f;
 	CreateClientScene();
 	menuVisible = !menuVisible;
 	window_->SetVisible(false);
@@ -707,9 +725,6 @@ void CharacterDemo::CreateUI() {
 	sprite->SetSize(15, 15);
 	sprite->SetPosition(Vector2(winWidth/2, winHeight/2));
 
-	Window* health_window = new Window(context_);
-	uiRoot_->AddChild(health_window);
-
 	Texture2D* healthbarTex = cache->GetResource<Texture2D>("Textures/red.png");
 	Sprite* healthSprite = uiRoot_->CreateChild<Sprite>();
 	healthSprite->SetName("playerHealthBar");
@@ -768,8 +783,74 @@ void CharacterDemo::CreateUI() {
 
 	timerText = uiRoot_->CreateChild<Text>();
 	timerText->SetName("timerText");
-	timerText->SetText("05:00:00");
+	timerText->SetText("00:00");
 	timerText->SetFont(font, 32);
 	timerText->SetColor(Color::WHITE);
 	timerText->SetPosition((winWidth / 2) - (timerText->GetWidth() / 2), 20);
+}
+
+void CharacterDemo::CreateEndScreen() {
+	UI* ui = GetSubsystem<UI>();
+	Graphics* graphics = GetSubsystem<Graphics>();
+	Font* font = cache->GetResource<Font>("Fonts/FRAMDCN.TTF");
+	float winWidth = (float)graphics->GetWidth();
+	float winHeight = (float)graphics->GetHeight();
+
+	ui->GetCursor()->SetVisible(true);
+
+	Texture2D* tridentTexture = cache->GetResource<Texture2D>("Textures/TridentFull.png");
+	Sprite* tridentSprite = uiRoot_->CreateChild<Sprite>();
+	tridentSprite->SetName("name");
+	tridentSprite->SetTexture(tridentTexture);
+	tridentSprite->SetHotSpot(60, 60);
+	tridentSprite->SetSize(120, 120);
+	tridentSprite->SetPosition(Vector2(winWidth / 2, 130));
+
+	Window* buttonWindow = new Window(context_);
+	uiRoot_->AddChild(buttonWindow);
+
+	buttonWindow->SetMinWidth(200);
+	buttonWindow->SetLayout(LM_VERTICAL, 6, IntRect(6, 6, 6, 6));
+	buttonWindow->SetName("ButtonWindow");
+	buttonWindow->SetStyleAuto();
+
+	Text* endedTitleText = uiRoot_->CreateChild<Text>();
+	endedTitleText->SetName("endedTitle");
+	if (gs == WON) endedTitleText->SetText("YOU WON!");
+	if (gs == LOST) endedTitleText->SetText("YOU LOST!"); 
+	if (gs == ENDED) endedTitleText->SetText("GAME ENDED!");
+	endedTitleText->SetFont(font, 32);
+	endedTitleText->SetColor(Color::WHITE);
+	endedTitleText->SetPosition((winWidth / 2) - (endedTitleText->GetWidth() / 2), tridentSprite->GetPosition().y_ + 70);
+
+	Text* causeofdeathText = uiRoot_->CreateChild<Text>();
+	causeofdeathText->SetName("endedTitle");
+	causeofdeathText->SetText(causeofdeath);
+	causeofdeathText->SetFont(font, 20);
+	causeofdeathText->SetColor(Color::WHITE);
+	causeofdeathText->SetPosition((winWidth / 2) - (causeofdeathText->GetWidth() / 2), endedTitleText->GetPosition().y_ + 50);
+	causeofdeathText->SetTextAlignment(HA_CENTER);
+
+	Text* fishesCaughtText = uiRoot_->CreateChild<Text>();
+	fishesCaughtText->SetName("endedTitle");
+	fishesCaughtText->SetText("You caught: " + (String)fishCaught + " fishes!");
+	fishesCaughtText->SetFont(font, 20);
+	fishesCaughtText->SetColor(Color::WHITE);
+	fishesCaughtText->SetPosition((winWidth / 2) - (fishesCaughtText->GetWidth() / 2), causeofdeathText->GetPosition().y_ + causeofdeathText->GetHeight() + 10);
+
+	Text* fishesKilledText = uiRoot_->CreateChild<Text>();
+	fishesKilledText->SetName("endedTitle");
+	if (fishKilled > 0) fishesKilledText->SetText("and killed " + (String)fishKilled + " fishes :(");
+	else fishesKilledText->SetText("and killed " + (String)fishKilled + " fishes :D!");
+	fishesKilledText->SetFont(font, 20);
+	fishesKilledText->SetColor(Color::WHITE);
+	fishesKilledText->SetPosition((winWidth / 2) - (fishesKilledText->GetWidth() / 2), fishesCaughtText->GetPosition().y_ + 30);
+
+	Button* playAgainButton = menu_->CreateButton("Play again!", 24, buttonWindow, font);
+	Button* quitButton = menu_->CreateButton("Quit", 24, buttonWindow, font);
+
+	SubscribeToEvent(playAgainButton, E_RELEASED, URHO3D_HANDLER(CharacterDemo, StartSingleplayer));
+	SubscribeToEvent(quitButton, E_RELEASED, URHO3D_HANDLER(CharacterDemo, HandleQuit));
+
+	buttonWindow->SetPosition((winWidth / 2) - (buttonWindow->GetWidth() / 2), fishesKilledText->GetPosition().y_ + fishesKilledText->GetHeight() + 10);
 }

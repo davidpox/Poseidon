@@ -10,11 +10,13 @@ boidsSet::~boidsSet() {
 
 void boidsSet::Initialise(ResourceCache* pRc, Scene* pSc) {
 	int total_boids = 0;
+	boidsLeft = 0;
 	for (int i = 1; i <= 20; ++i) {
 		for (int j = 0; j < 10; ++j) {
 			total_boids++;
 			boidList.push_back(boids());
 			boidList[total_boids - 1].Initialise(pRc, pSc, i, j, total_boids);
+			boidsLeft++;
 		}
 	}
 }

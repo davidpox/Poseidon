@@ -58,7 +58,10 @@ class CharacterDemo : public Sample
 		CLIENT,
 		SERVER,
 		SINGLEPLAYER,
-		PAUSED
+		PAUSED,
+		WON,
+		LOST,
+		ENDED
 	};
 
 public:
@@ -116,6 +119,7 @@ private:
 	void ProcessClientControls();
 
 	void CreateUI();
+	void CreateEndScreen();
 
     /// Touch utility object.
     SharedPtr<Touch> touch_;
@@ -137,7 +141,8 @@ private:
 	bool menuVisible = true;
 	bool drawDebug_;
 	float MOVE_SPEED = 20.0f;
-	int playerHealth = 100;
+	int playerHealth = 5;
+	String causeofdeath;
 
 	unsigned playerNodeID = -1;
 
@@ -156,6 +161,6 @@ private:
 	int fishCaught = 0;
 	int fishKilled = 0;
 	Text* timerText;
-	int countdowntimer = 18000;
+	float countdowntimer = 300.0f;
 
 };

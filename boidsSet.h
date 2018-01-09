@@ -42,6 +42,7 @@ public:
 	
 	//boids boidList[NumBoids];
 	std::vector<boids> boidList;
+	int boidsLeft;
 
 	boidsSet();
 	~boidsSet();
