@@ -173,7 +173,7 @@ void CharacterDemo::CreateClientScene() {
 	if (gs == SINGLEPLAYER) {
 		bS.Initialise(cache, scene_);
 		Node* newPlayer = CreateCharacter();
-		cameraNode_->SetPosition(newPlayer->GetPosition());
+		cameraNode_->SetPosition(newPlayer->GetPosition() + Vector3(0.0f, 2.0f, 0.0f));
 		cameraNode_->SetParent(newPlayer);
 	}
 	CreateEnvironemnt();
@@ -191,7 +191,22 @@ Node* CharacterDemo::CreateCharacter()
 	RigidBody* rb_sub = n_sub->CreateComponent<RigidBody>();
 	rb_sub->SetCollisionLayer(4);
 	CollisionShape* cs_sub = n_sub->CreateComponent<CollisionShape>();
-	cs_sub->SetBox(Vector3(16.0f, 12.0f, 50.0f));
+	cs_sub->SetBox(Vector3(17.0f, 12.0f, 45.0f));
+	cs_sub->SetPosition(Vector3(0.0f, 0.0f, -3.0f));
+
+	Node* nSubHook = n_sub->CreateChild("PlayerHook");
+	nSubHook->SetPosition(Vector3(0.0f, 3.0f, -0.5f));
+	nSubHook->SetScale(Vector3(0.4f, 0.4f, 0.4f));
+	StaticModel* mSubHook = nSubHook->CreateComponent<StaticModel>();
+	mSubHook->SetModel(cache->GetResource<Model>("Models/Hook.mdl"));
+	mSubHook->SetMaterial(cache->GetResource<Material>("Materials/plane-grey.xml"));
+	RigidBody* rbSubHook = nSubHook->CreateComponent<RigidBody>();
+	rbSubHook->SetCollisionLayer(2);
+	rbSubHook->SetUseGravity(false);
+	rbSubHook->SetTrigger(true);
+	CollisionShape* csSubHook = nSubHook->CreateComponent<CollisionShape>();
+	csSubHook->SetBox(Vector3(10.0f, 10.0f, 1.0f));
+	csSubHook->SetPosition(Vector3(0.0f, 5.0f, 23.0f));
 
 	playerNodeID = n_sub->GetID();
 
@@ -330,7 +345,17 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 
 		MOVE_SPEED = 20.0f;
 
+		
+
 		if (gs == SINGLEPLAYER ) {
+			if(!menuVisible) {
+				if(countdowntimer > 0) {
+					countdowntimer -= timeStep;
+					String min = (String)(countdowntimer / 60);
+					String sec = (String)(countdowntimer % 60);
+					timerText->SetText("0" + min + ":" + sec);// + ":" + (String)timeStep);
+				}
+			}
 
 			Node* player = scene_->GetNode(playerNodeID);
 			//std::cout << "updating in singleplayer" << std::endl;
@@ -365,6 +390,9 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 			if ((pos.y_ + 2.0f) > 90.0f) {
 				player->SetPosition(Vector3(pos.x_, pos.y_ - 2.0f, pos.z_));
 			}
+
+			
+			
 		}
 		
 
@@ -372,7 +400,8 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 			drawDebug_ = !drawDebug_;
 		}
 		if (input->GetKeyPress(KEY_L) && gs != SERVER) {
-			scene_->GetNode(playerNodeID)->GetComponent<Light>()->SetEnabled(!scene_->GetNode(playerNodeID)->GetComponent<Light>()->IsEnabled());
+			Light* playerLight = scene_->GetNode(playerNodeID)->GetChild("Flashlight")->GetComponent<Light>();
+			playerLight->SetEnabled(!playerLight->IsEnabled());
 		}
 		if (gs != CLIENT) {
 			//std::cout << "updating in NOT client" << std::endl;	//called on server
@@ -406,6 +435,8 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 
 	if (input->GetKeyPress(KEY_M)) {
 		menuVisible = !menuVisible;
+		if (gs == PAUSED) gs = SINGLEPLAYER;
+		else gs = PAUSED;
 		ui->GetCursor()->SetVisible(menuVisible);
 		window_->SetVisible(menuVisible);
 	}
@@ -444,9 +475,18 @@ void CharacterDemo::HandleCollision(StringHash eventType, VariantMap& eventData)
 				collided->GetNode()->SetEnabled(false);
 				if (playerHealth > 0) {
 					uiRoot_->GetChild("warningText", false)->SetVisible(true);
+					fishKilled++;
 					playerHealth -= 5;
 				}
 				//std::cout << "erased " << collided->GetNode()->GetVar("boid_number").GetInt() << std::endl;
+			}
+		}
+
+		if (collided->GetNode()->GetName() == "PlayerHook") {
+			if (collided2->GetNode()->GetName().Contains("Boid_", false)) {
+				collided2->GetNode()->SetEnabled(false);
+				fishCaught++;
+				Log::WriteRaw("Caught fish!! new fish count: " + (String)fishCaught);
 			}
 		}
 	}
@@ -461,9 +501,14 @@ void CharacterDemo::HandlePostUpdate(StringHash eventType, VariantMap& eventData
 		}
 		if (gs == CLIENT || gs == SINGLEPLAYER) {
 			uiRoot_->GetChild("playerHealthBar", false)->SetWidth(playerHealth * 2);
-			Text* healthText = (Text*)uiRoot_->GetChild("playerHealthText", true);
+			Text* healthText = (Text*)uiRoot_->GetChild("playerHealthText", false);
 			healthText->SetText((String)playerHealth + "HP");
 
+			Text* fishKilledText = (Text*)uiRoot_->GetChild("fishKilledText", false);
+			fishKilledText->SetText((String)fishKilled);
+
+			Text* fishCaughtText = (Text*)uiRoot_->GetChild("fishCaughtText", false);
+			fishCaughtText->SetText((String)fishCaught);
 			
 		}
 	}
@@ -541,6 +586,7 @@ void CharacterDemo::StartSingleplayer(StringHash eventType, VariantMap& eventDat
 	UI* ui = GetSubsystem<UI>();
 	gs = SINGLEPLAYER;
 	CreateClientScene();
+	menuVisible = !menuVisible;
 	window_->SetVisible(false);
 	ui->GetCursor()->SetVisible(false);
 }
@@ -664,16 +710,6 @@ void CharacterDemo::CreateUI() {
 	Window* health_window = new Window(context_);
 	uiRoot_->AddChild(health_window);
 
-	//health_window->SetMinWidth(200);
-	//health_window->SetLayout(LM_VERTICAL, 6, IntRect(6, 6, 6, 6));
-	//health_window->SetAlignment(HA_CENTER, VA_CENTER);
-	//health_window->SetName("Player Info");
-	//health_window->SetPosition(-(winWidth / 2) + (health_window->GetWidth() / 2 ) + 10, 
-	//							-(winHeight / 2) + (health_window->GetHeight() / 2) + 10);
-	//health_window->SetStyleAuto();
-
-	//Slider* slider = menu_->CreateSlider(100, 100, 30, health_window);
-	//slider->SetColor(Color::RED);
 	Texture2D* healthbarTex = cache->GetResource<Texture2D>("Textures/red.png");
 	Sprite* healthSprite = uiRoot_->CreateChild<Sprite>();
 	healthSprite->SetName("playerHealthBar");
@@ -688,7 +724,8 @@ void CharacterDemo::CreateUI() {
 	healthText->SetFont(font, 20);
 	healthText->SetColor(Color::WHITE);
 	healthText->SetPosition(healthSprite->GetPosition().x_ - (healthText->GetWidth() / 2), healthSprite->GetPosition().y_ - (healthText->GetHeight() / 2));
-	
+	healthText->SetPriority(10);
+
 	Text* warningText = uiRoot_->CreateChild<Text>();
 	warningText->SetName("warningText");
 	warningText->SetText("You're supposed to catch the fish, not kill them!");
@@ -699,4 +736,40 @@ void CharacterDemo::CreateUI() {
 	warningText->SetPosition(winWidth - warningText->GetWidth() - 10, winHeight - 30);
 	warningText->SetVisible(false);
 
+	Texture2D* deadFishTex = cache->GetResource<Texture2D>("Textures/iconDeadFish.png");
+	Sprite* spriteDeadFish = uiRoot_->CreateChild<Sprite>();
+	spriteDeadFish->SetName("deadFishIcon");
+	spriteDeadFish->SetTexture(deadFishTex);
+	spriteDeadFish->SetSize(50,50);
+	spriteDeadFish->SetHotSpot(25, 25);
+	spriteDeadFish->SetPosition(35, healthSprite->GetPosition().y_ - 50);
+
+	Text* fishKilledText = uiRoot_->CreateChild<Text>();
+	fishKilledText->SetName("fishKilledText");
+	fishKilledText->SetText("0");
+	fishKilledText->SetFont(font, 28);
+	fishKilledText->SetColor(Color::WHITE);
+	fishKilledText->SetPosition(70, healthSprite->GetPosition().y_ - 70);
+
+	Texture2D* caughtFishTex = cache->GetResource<Texture2D>("Textures/iconNet.png");
+	Sprite* spriteCaughtFish = uiRoot_->CreateChild<Sprite>();
+	spriteCaughtFish->SetName("caughtFishIcon");
+	spriteCaughtFish->SetTexture(caughtFishTex);
+	spriteCaughtFish->SetSize(50, 50);
+	spriteCaughtFish->SetHotSpot(25, 25);
+	spriteCaughtFish->SetPosition(120, healthSprite->GetPosition().y_ - 50);
+
+	Text* fishCaughtText = uiRoot_->CreateChild<Text>();
+	fishCaughtText->SetName("fishCaughtText");
+	fishCaughtText->SetText("0");
+	fishCaughtText->SetFont(font, 28);
+	fishCaughtText->SetColor(Color::WHITE);
+	fishCaughtText->SetPosition(155, healthSprite->GetPosition().y_ - 70);
+
+	timerText = uiRoot_->CreateChild<Text>();
+	timerText->SetName("timerText");
+	timerText->SetText("05:00:00");
+	timerText->SetFont(font, 32);
+	timerText->SetColor(Color::WHITE);
+	timerText->SetPosition((winWidth / 2) - (timerText->GetWidth() / 2), 20);
 }

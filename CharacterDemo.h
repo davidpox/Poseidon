@@ -57,7 +57,8 @@ class CharacterDemo : public Sample
 		NONE,
 		CLIENT,
 		SERVER,
-		SINGLEPLAYER
+		SINGLEPLAYER,
+		PAUSED
 	};
 
 public:
@@ -152,5 +153,9 @@ private:
 
 	// COUNTERS
 	float warningTextCounter = 0.0f;
+	int fishCaught = 0;
+	int fishKilled = 0;
+	Text* timerText;
+	int countdowntimer = 18000;
 
 };
