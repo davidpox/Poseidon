@@ -136,6 +136,7 @@ private:
 	bool menuVisible = true;
 	bool drawDebug_;
 	float MOVE_SPEED = 20.0f;
+	int playerHealth = 100;
 
 	unsigned playerNodeID = -1;
 
@@ -148,5 +149,8 @@ private:
 	gamestate gs;
 	LineEdit* leIPAddress;
 	static const unsigned short SERVER_PORT = 2345;
+
+	// COUNTERS
+	float warningTextCounter = 0.0f;
 
 };

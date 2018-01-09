@@ -44,6 +44,10 @@
 #include <Urho3D/UI/Font.h>
 #include <Urho3D/UI/Text.h>
 #include <Urho3D/UI/UI.h>
+#include <Urho3D/UI/Sprite.h>
+#include <Urho3D/Urho2D/Sprite2D.h>
+#include <Urho3D/Graphics/Graphics.h>
+#include <Urho3D/Graphics/Texture2D.h>
 #include <Urho3D/Engine/Console.h>
 
 #include "Character.h"
@@ -57,6 +61,8 @@
 #include <Urho3D/UI/CheckBox.h>
 #include <Urho3D/Graphics/Skybox.h>
 #include <Urho3D/Graphics/Terrain.h>
+#include <Urho3D\Urho2D\AnimatedSprite2D.h>
+#include <Urho3D\Urho2D\AnimationSet2D.h>
 
 #include <Urho3D/Network/Connection.h>
 #include <Urho3D/Network/Network.h>
@@ -313,8 +319,10 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 	Input* input = GetSubsystem<Input>();
 	const float MOUSE_SENSITIVITY = 0.1f;
 	IntVector2 mouseMove = input->GetMouseMove();
-	
+
 	if (!ui->GetCursor()->IsVisible() && scene_ != nullptr && gs != NONE) {
+
+		if (uiRoot_->GetChild("warningText", false)->IsVisible()) warningTextCounter += timeStep;
 
 		yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
 		pitch_ += MOUSE_SENSITIVITY * mouseMove.y_;
@@ -379,8 +387,13 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 				scene_->LoadXML(loadFile);
 			}
 		}
-		
 
+		if (gs == CLIENT || gs == SINGLEPLAYER) {
+			if (warningTextCounter >= 5.0f) {
+				uiRoot_->GetChild("warningText", false)->SetVisible(false);
+				warningTextCounter = 0.0f;
+			}
+		}
 	}
 	
 	if (gs == CLIENT) {
@@ -429,6 +442,10 @@ void CharacterDemo::HandleCollision(StringHash eventType, VariantMap& eventData)
 			if (collided->GetNode()->GetName().Contains("Boid_", false)) {
 				//bS.boidList.erase(bS.boidList.begin() + collided->GetNode()->GetVar("boid_number").GetInt());
 				collided->GetNode()->SetEnabled(false);
+				if (playerHealth > 0) {
+					uiRoot_->GetChild("warningText", false)->SetVisible(true);
+					playerHealth -= 5;
+				}
 				//std::cout << "erased " << collided->GetNode()->GetVar("boid_number").GetInt() << std::endl;
 			}
 		}
@@ -441,6 +458,13 @@ void CharacterDemo::HandlePostUpdate(StringHash eventType, VariantMap& eventData
 		if (drawDebug_) {
 			PhysicsWorld* pW_ = scene_->GetComponent<PhysicsWorld>();
 			pW_->DrawDebugGeometry(dRenderer, true);
+		}
+		if (gs == CLIENT || gs == SINGLEPLAYER) {
+			uiRoot_->GetChild("playerHealthBar", false)->SetWidth(playerHealth * 2);
+			Text* healthText = (Text*)uiRoot_->GetChild("playerHealthText", true);
+			healthText->SetText((String)playerHealth + "HP");
+
+			
 		}
 	}
 }
@@ -477,23 +501,25 @@ void CharacterDemo::CreateMainMenu() {
 	window_ = new Window(context_);
 	uiRoot_->AddChild(window_);
 
-	Font* font = cache->GetResource<Font>("Fonts/Anonymous Pro.ttf");
+	Font* font = cache->GetResource<Font>("Fonts/FRAMDCN.TTF");
 	window_->SetMinWidth(200);
 	window_->SetLayout(LM_VERTICAL, 6, IntRect(6, 6, 6, 6));
 	window_->SetAlignment(HA_CENTER, VA_CENTER);
 	window_->SetName("Window");
 	window_->SetStyleAuto();
 
-	Text* menuText = menu_->CreateText("Main Menu", 16, window_, font, 16);
-	Button* btnSingleplayer = menu_->CreateButton("Singleplayer", 24, window_, font);
+	Text* menuText = menu_->CreateText("MAIN MENU", 16, window_, font, 16);
+	menuText->SetColor(Color::BLACK);
+	Button* btnSingleplayer = menu_->CreateButton("SINGLEPLAYER", 24, window_, font);
 	
-	Text* serverText = menu_->CreateText("Server", 16, window_, font, 16);
-	leIPAddress = menu_->CreateLineEdit("IP Address", 24, window_, font);
-	Button* btnConnect = menu_->CreateButton("Connect", 24, window_, font);
-	Button* btnCreateServer = menu_->CreateButton("Start Server", 24, window_, font);
+	Text* serverText = menu_->CreateText("SERVER", 16, window_, font, 16);
+	serverText->SetColor(Color::BLACK);
+	leIPAddress = menu_->CreateLineEdit("", 24, window_, font);
+	Button* btnConnect = menu_->CreateButton("CONNECT", 24, window_, font);
+	Button* btnCreateServer = menu_->CreateButton("START SERVER", 24, window_, font);
 	Text* spacer1 = menu_->CreateText("", 16, window_, font, 16);
-	Button* btnDisconnect = menu_->CreateButton("Disconnect", 24, window_, font);
-	Button* btnQuit = menu_->CreateButton("Quit", 24, window_, font);
+	Button* btnDisconnect = menu_->CreateButton("DISCONNECT", 24, window_, font);
+	Button* btnQuit = menu_->CreateButton("QUIT", 24, window_, font);
 	//ToolTip* tp = menu_->CreateToolTip("Exits the application", font, 12, window_);
 	//QuitButton->AddChild(tp);
 
@@ -623,14 +649,54 @@ void CharacterDemo::handleClientSceneLoaded(StringHash eventType, VariantMap& ev
 void CharacterDemo::CreateUI() {
 	UI* ui = GetSubsystem<UI>();
 	Graphics* graphics = GetSubsystem<Graphics>();
+	Font* font = cache->GetResource<Font>("Fonts/FRAMDCN.TTF");
 	float winWidth = (float)graphics->GetWidth();
 	float winHeight = (float)graphics->GetHeight();
 
-	Texture2D* texCrosshair = cache->GetResource<Texture2D>("Textures/crosshair.png");
-	SharedPtr<Sprite> spriteCrosshair(new Sprite(context_));
-	spriteCrosshair->SetTexture(texCrosshair);
-	spriteCrosshair->SetPosition(winWidth/2, winHeight/2);
-	spriteCrosshair->SetHotSpot(7, 7);
+	Texture2D* tex = cache->GetResource<Texture2D>("Textures/crosshair.png");
+	Sprite* sprite = uiRoot_->CreateChild<Sprite>();
+	sprite->SetName("name");
+	sprite->SetTexture(tex);
+	sprite->SetHotSpot(7, 7);
+	sprite->SetSize(15, 15);
+	sprite->SetPosition(Vector2(winWidth/2, winHeight/2));
 
-	ui->GetRoot()->AddChild(spriteCrosshair);
+	Window* health_window = new Window(context_);
+	uiRoot_->AddChild(health_window);
+
+	//health_window->SetMinWidth(200);
+	//health_window->SetLayout(LM_VERTICAL, 6, IntRect(6, 6, 6, 6));
+	//health_window->SetAlignment(HA_CENTER, VA_CENTER);
+	//health_window->SetName("Player Info");
+	//health_window->SetPosition(-(winWidth / 2) + (health_window->GetWidth() / 2 ) + 10, 
+	//							-(winHeight / 2) + (health_window->GetHeight() / 2) + 10);
+	//health_window->SetStyleAuto();
+
+	//Slider* slider = menu_->CreateSlider(100, 100, 30, health_window);
+	//slider->SetColor(Color::RED);
+	Texture2D* healthbarTex = cache->GetResource<Texture2D>("Textures/red.png");
+	Sprite* healthSprite = uiRoot_->CreateChild<Sprite>();
+	healthSprite->SetName("playerHealthBar");
+	healthSprite->SetTexture(healthbarTex);
+	healthSprite->SetSize(200, 40);
+	healthSprite->SetHotSpot(100, 20);
+	healthSprite->SetPosition(110, winHeight - 30);
+
+	Text* healthText = uiRoot_->CreateChild<Text>();
+	healthText->SetName("playerHealthText");
+	healthText->SetText("100HP");
+	healthText->SetFont(font, 20);
+	healthText->SetColor(Color::WHITE);
+	healthText->SetPosition(healthSprite->GetPosition().x_ - (healthText->GetWidth() / 2), healthSprite->GetPosition().y_ - (healthText->GetHeight() / 2));
+	
+	Text* warningText = uiRoot_->CreateChild<Text>();
+	warningText->SetName("warningText");
+	warningText->SetText("You're supposed to catch the fish, not kill them!");
+	warningText->SetFont(font, 16);
+	warningText->SetColor(Color::RED);
+	//warningText->SetPivot(warningText->GetWidth(), 0);
+	//Log::WriteRaw("width: " + (String)warningText->GetWidth() + " height: " + (String)warningText->GetHeight());
+	warningText->SetPosition(winWidth - warningText->GetWidth() - 10, winHeight - 30);
+	warningText->SetVisible(false);
+
 }

@@ -58,7 +58,7 @@ public:
 	LineEdit* CreateLineEdit(const String& text, int pHeight, Urho3D::Window* whichWindow, Font* font);
 	CheckBox* CreateCheckBox(int pHeight, Urho3D::Window* whichWindow);
 	Text* CreateText(const String& text, int pHeight, Urho3D::Window* whichWindow, Font* font, int fontSize);
-	Slider* CreateSlider(float RangeMax, int pHeight, Urho3D::Window* whichWindow);
+	Slider* CreateSlider(float RangeMax, int width, int height, Urho3D::Window* whichWindow);
 	ToolTip* CreateToolTip(const String& text, Font* font, int fontSize, Urho3D::Window* whichWindow);
 
 

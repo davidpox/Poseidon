@@ -33,6 +33,7 @@ LineEdit* menu::CreateLineEdit(const String& text, int pHeight, Urho3D::Window* 
 	lineEdit->SetMinHeight(pHeight);
 	lineEdit->SetAlignment(HA_CENTER, VA_CENTER);
 	lineEdit->SetText(text);
+
 	lineEdit->SetStyleAuto();
 
 	whichWindow->AddChild(lineEdit);
@@ -62,11 +63,11 @@ Text* menu::CreateText(const String& text, int pHeight, Urho3D::Window* whichWin
 	return txt;
 }
 
-Slider* menu::CreateSlider(float RangeMax, int pHeight, Urho3D::Window* whichWindow) {
+Slider* menu::CreateSlider(float RangeMax, int width, int height, Urho3D::Window* whichWindow) {
 	Slider* slider = whichWindow->CreateChild<Slider>();
 	slider->SetRange(RangeMax);
 	slider->SetStyleAuto();
-	slider->SetSize(150, 16);
+	slider->SetSize(width, height);
 	whichWindow->AddChild(slider);
 	return slider;
 }
