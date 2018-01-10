@@ -40,7 +40,6 @@ class boids {
 	static float FRepel_Factor;
 	static float FAlign_Factor;
 	static float FAttract_Vmax;
-	static float Range_Inside;
 	static int MAX_BOIDS_GROUP_SIZE;
 
 public: 
@@ -49,15 +48,9 @@ public:
 	RigidBody* pRigidBody;
 	CollisionShape* pCollisionShape;
 	StaticModel* pObject;
-	BoundingBox bounds_; // valid move area for boids. 
-	float steertimer;
-	float steerrate;
-	bool leader;
 	int group_num; 
-	Vector3 vGoTo;
-
-	bool looking_for_group;
 	int group_size;
+
 
 	boids::boids();
 	boids::~boids();
@@ -65,6 +58,4 @@ public:
 	void Initialise(ResourceCache* pRc, Scene* pSc, int group_num, int boid_num, int boidNum);
 	void ComputeForce(boids* pBoid);
 	void Update(float delta);
-	void doSteer(float timeStep);
-	Vector3 getNewLocation();
 };

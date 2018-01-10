@@ -113,10 +113,7 @@ void CharacterDemo::CreateServerScene()
 
 	// CAMERA CREATION
 	cameraNode_ = scene_->CreateChild("Camera", LOCAL);
-	//cameraNode_->SetRotation(Quaternion(0.0f, 90.0f, 0.0f));
 	Camera* camera = cameraNode_->CreateComponent<Camera>();
-	cameraNode_->SetPosition(Vector3(0.0f, 10.0f, 0.0f));
-	cameraNode_->SetRotation(Quaternion(90.0f, 0.0f, 0.0f));
 	camera->SetFarClip(750.0f);
 
 	GetSubsystem<Renderer>()->SetViewport(0, new Viewport(context_, scene_, camera));
@@ -136,10 +133,16 @@ void CharacterDemo::CreateServerScene()
 	s_skybox->SetMaterial(cache->GetResource<Material>("Materials/Skybox.xml"));
 
 	bS.Initialise(cache, scene_);
+	//sS.InitialiseShark(cache, scene_);
 
-	//CreateCharacter();
+	Node* newPlayer = CreateCharacter();
+	cameraNode_->SetPosition(newPlayer->GetPosition() + Vector3(0.0f, 2.0f, 0.0f));
+	cameraNode_->SetParent(newPlayer);
+
+	CreateUI();
 	CreateEnvironemnt();
 }
+
 
 void CharacterDemo::CreateClientScene() {
 	// SCENE CREATION
@@ -149,12 +152,9 @@ void CharacterDemo::CreateClientScene() {
 	scene_->CreateComponent<DebugRenderer>(LOCAL);
 
 	// CAMERA CREATION
-	cameraNode_ = scene_->CreateChild("Camera", LOCAL);
-	//cameraNode_->SetRotation(Quaternion(0.0f, 90.0f, 0.0f));
+	cameraNode_ = scene_->CreateChild("SpectatorCamera");
 	Camera* camera = cameraNode_->CreateComponent<Camera>();
-	cameraNode_->SetPosition(Vector3(0.0f, 0.0f, 0.0f));
 	camera->SetFarClip(750.0f);
-
 	GetSubsystem<Renderer>()->SetViewport(0, new Viewport(context_, scene_, camera));
 
 	// ZONE & FOG CREATION
@@ -172,10 +172,17 @@ void CharacterDemo::CreateClientScene() {
 	s_skybox->SetMaterial(cache->GetResource<Material>("Materials/Skybox.xml"));
 
 	if (gs == SINGLEPLAYER) {
-		bS.Initialise(cache, scene_);
+
 		Node* newPlayer = CreateCharacter();
 		cameraNode_->SetPosition(newPlayer->GetPosition() + Vector3(0.0f, 2.0f, 0.0f));
 		cameraNode_->SetParent(newPlayer);
+
+		//sS.InitialiseShark(cache, scene_);
+		bS.Initialise(cache, scene_);
+	}
+	if (gs == CLIENT) {
+//		Node* host = scene_->GetChild("Player", true);
+//		cameraNode_->SetParent(host);
 	}
 	CreateEnvironemnt();
 	CreateUI();
@@ -184,11 +191,12 @@ void CharacterDemo::CreateClientScene() {
 Node* CharacterDemo::CreateCharacter()
 {
 	Node* n_sub = scene_->CreateChild("Player");
+	n_sub->SetVar("health", 100);
 	n_sub->SetPosition(Vector3(0.0f, 5.0f, 0.0f));
 	n_sub->SetScale(Vector3(0.4f, 0.4f, 0.4f));
 	StaticModel* m_sub = n_sub->CreateComponent<StaticModel>();
 	m_sub->SetModel(cache->GetResource<Model>("Models/Submarine.mdl"));
-	//m_sub->ApplyMaterialList();
+	m_sub->ApplyMaterialList();
 	RigidBody* rb_sub = n_sub->CreateComponent<RigidBody>();
 	rb_sub->SetCollisionLayer(4);
 	CollisionShape* cs_sub = n_sub->CreateComponent<CollisionShape>();
@@ -228,21 +236,33 @@ Node* CharacterDemo::CreateCharacter()
 
 void CharacterDemo::CreateEnvironemnt()
 {
-	// CREATE TERRAIN
-	Node* n_terrain = scene_->CreateChild("Terrrain", LOCAL);
-	n_terrain->SetPosition(Vector3(0.0f, -5.0f, 0.0f));
-	t_terrain = n_terrain->CreateComponent<Terrain>();
-	t_terrain->SetSpacing(Vector3(0.4f, 0.05f, 0.2f));
-	t_terrain->SetSmoothing(true);
-	t_terrain->SetHeightMap(cache->GetResource<Image>("Textures/oceanmap.png"));
-	t_terrain->SetMaterial(cache->GetResource<Material>("Materials/Terrain.xml"));
-	t_terrain->SetPatchSize(64);
-	t_terrain->SetCastShadows(false);
-	t_terrain->SetOccluder(true);
-	RigidBody* rb_terrain = n_terrain->CreateComponent<RigidBody>();
-	rb_terrain->SetCollisionLayer(2);
-	CollisionShape* cs_terrain = n_terrain->CreateComponent<CollisionShape>();
-	cs_terrain->SetTerrain();
+	
+	//// CREATE TERRAIN
+	//Node* n_terrain = scene_->CreateChild("Terrrain", LOCAL);
+	//n_terrain->SetPosition(Vector3(0.0f, -5.0f, 0.0f));
+	//t_terrain = n_terrain->CreateComponent<Terrain>();
+	//t_terrain->SetSpacing(Vector3(0.4f, 0.05f, 0.2f));
+	////t_terrain->SetSmoothing(true);
+	//t_terrain->SetHeightMap(cache->GetResource<Image>("Textures/HeightMap.png"));
+	//t_terrain->SetMaterial(cache->GetResource<Material>("Materials/Terrain.xml"));
+	//t_terrain->SetPatchSize(64);
+	//t_terrain->SetCastShadows(false);
+	////t_terrain->SetOccluder(true);
+	//RigidBody* rb_terrain = n_terrain->CreateComponent<RigidBody>();
+	//rb_terrain->SetCollisionLayer(2);
+	//CollisionShape* cs_terrain = n_terrain->CreateComponent<CollisionShape>();
+	//cs_terrain->SetTerrain();
+
+	Node* nBox = scene_->CreateChild("terrain", LOCAL);
+	nBox->SetPosition(Vector3(0.0f, 0.0f, 0.0f));
+	nBox->SetScale(Vector3(409.6f, 1.0f, 204.8f));
+	StaticModel* mBox = nBox->CreateComponent<StaticModel>();
+	mBox->SetModel(cache->GetResource<Model>("Models/Box.mdl"));
+	mBox->SetMaterial(cache->GetResource<Material>("Materials/Terrain.xml"));
+	RigidBody* rbBox = nBox->CreateComponent<RigidBody>();
+	rbBox->SetCollisionLayer(2);
+	CollisionShape* csBox = nBox->CreateComponent<CollisionShape>();
+	csBox->SetBox(Vector3::ONE);
 
 	// CREATE WALL 1
 	Node* n_wall_1 = scene_->CreateChild("Wall", LOCAL);
@@ -337,19 +357,13 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 	IntVector2 mouseMove = input->GetMouseMove();
 
 	if (!ui->GetCursor()->IsVisible() && scene_ != nullptr && (gs != NONE && gs != WON && gs != LOST && gs != ENDED)) {
-
-		if (uiRoot_->GetChild("warningText", false)->IsVisible()) warningTextCounter += timeStep;
-
 		yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
 		pitch_ += MOUSE_SENSITIVITY * mouseMove.y_;
 		pitch_ = Clamp(pitch_, -90.0f, 90.0f);
-
 		MOVE_SPEED = 20.0f;
 
-		
-
-		if (gs == SINGLEPLAYER ) {
-			if(!menuVisible) {
+		if (gs == SINGLEPLAYER || gs == SERVER || gs == CLIENT) {
+			/*if(!menuVisible) {
 				if(countdowntimer >= 0.0f) {
 					countdowntimer -= timeStep;
 					String min = (String)((int)countdowntimer / 60 );
@@ -361,45 +375,42 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 					gs = ENDED;
 					causeofdeath = "The time ran out!";
 				}
-			}
+			}*/
 
-			Node* player = scene_->GetNode(playerNodeID);
-			player->SetRotation(Quaternion(pitch_, yaw_, 0.0f));
-			if (input->GetKeyDown(KEY_SHIFT)) MOVE_SPEED *= 10.0f;
-			if (input->GetKeyDown(KEY_W)) player->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
-			if (input->GetKeyDown(KEY_S)) player->Translate(Vector3::BACK * MOVE_SPEED * timeStep);
-			if (input->GetKeyDown(KEY_A)) player->Translate(Vector3::LEFT * MOVE_SPEED * timeStep);
-			if (input->GetKeyDown(KEY_D)) player->Translate(Vector3::RIGHT * MOVE_SPEED * timeStep);
-			if (input->GetMouseButtonPress(MOUSEB_LEFT)) {
-				spawnMissle();
+			if (gs != CLIENT) {
+				Node* player = scene_->GetNode(playerNodeID);
+				player->SetRotation(Quaternion(pitch_, yaw_, 0.0f));
+				if (input->GetKeyDown(KEY_SHIFT)) MOVE_SPEED *= 10.0f;
+				if (input->GetKeyDown(KEY_W)) player->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
+				if (input->GetKeyDown(KEY_S)) player->Translate(Vector3::BACK * MOVE_SPEED * timeStep);
+				if (input->GetKeyDown(KEY_A)) player->Translate(Vector3::LEFT * MOVE_SPEED * timeStep);
+				if (input->GetKeyDown(KEY_D)) player->Translate(Vector3::RIGHT * MOVE_SPEED * timeStep);
+				if (input->GetMouseButtonPress(MOUSEB_LEFT)) {
+					spawnMissle();
+				}
+				Vector3 pos = player->GetPosition();
+				if ((pos.y_) < 0.0f) {
+					player->SetPosition(Vector3(pos.x_, pos.y_ + 1.0f, pos.z_));
+				}
+				if ((pos.x_ - 2.0f) > 204.8f) {
+					player->SetPosition(Vector3(pos.x_ - 2.0f, pos.y_, pos.z_));
+				}
+				if ((pos.x_ - 2.0f) < -204.8f) {
+					player->SetPosition(Vector3(pos.x_ + 2.0f, pos.y_, pos.z_));
+				}
+				if ((pos.z_ - 2.0f) > 102.4f) {
+					player->SetPosition(Vector3(pos.x_, pos.y_, pos.z_ - 2.0f));
+				}
+				if ((pos.z_ - 2.0f) < -102.4f) {
+					player->SetPosition(Vector3(pos.x_, pos.y_, pos.z_ + 2.0f));
+				}
+				if ((pos.y_ + 2.0f) > 90.0f) {
+					player->SetPosition(Vector3(pos.x_, pos.y_ - 2.0f, pos.z_));
+				}
+			} else {
+				cameraNode_->SetRotation(Quaternion(pitch_, yaw_, 0.0f));
 			}
-
-		
-			//TODO somehow get rigidbodies to do this???
-			Vector3 pos = player->GetPosition();
-			if ((pos.y_ - 2.0f) < t_terrain->GetHeight(pos)) {
-				player->SetPosition(Vector3(pos.x_, t_terrain->GetHeight(pos) + 2.0f, pos.z_));
-			}
-			if ((pos.x_ - 2.0f) > 204.8f) {
-				player->SetPosition(Vector3(pos.x_ - 2.0f, pos.y_, pos.z_));
-			}
-			if ((pos.x_ - 2.0f) < -204.8f) {
-				player->SetPosition(Vector3(pos.x_ + 2.0f, pos.y_, pos.z_));
-			}
-			if ((pos.z_ - 2.0f) > 102.4f) {
-				player->SetPosition(Vector3(pos.x_, pos.y_, pos.z_ - 2.0f));
-			}
-			if ((pos.z_ - 2.0f) < -102.4f) {
-				player->SetPosition(Vector3(pos.x_, pos.y_, pos.z_ + 2.0f));
-			}
-			if ((pos.y_ + 2.0f) > 90.0f) {
-				player->SetPosition(Vector3(pos.x_, pos.y_ - 2.0f, pos.z_));
-			}
-
-			
-			
-		}
-		
+		}		
 
 		if (input->GetKeyPress(KEY_P)) {
 			drawDebug_ = !drawDebug_;
@@ -409,8 +420,8 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 			playerLight->SetEnabled(!playerLight->IsEnabled());
 		}
 		if (gs != CLIENT) {
-			//std::cout << "updating in NOT client" << std::endl;	//called on server
 			bS.Update(timeStep);
+			//sS.UpdateShark(timeStep);
 
 			if (input->GetKeyPress(KEY_N)) {
 				File saveFile(context_, GetSubsystem<FileSystem>()->GetProgramDir() + "Data/Scenes/map.xml", FILE_WRITE);
@@ -422,7 +433,9 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 			}
 		}
 
-		if (gs == CLIENT || gs == SINGLEPLAYER) {
+		if (gs == SERVER || gs == SINGLEPLAYER) {
+			if (uiRoot_->GetChild("warningText", false)->IsVisible()) warningTextCounter += timeStep;
+
 			if (warningTextCounter >= 5.0f) {
 				uiRoot_->GetChild("warningText", false)->SetVisible(false);
 				warningTextCounter = 0.0f;
@@ -431,8 +444,7 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 	}
 	
 	if (gs == CLIENT) {
-		//std::cout << "updating playernode" << std::endl;			//called on client
-		Node* playerNode = this->scene_->GetNode(clientObjectID_);
+		Node* playerNode = scene_->GetChild("Player", false);
 		if (playerNode) {
 			cameraNode_->SetPosition(playerNode->GetPosition());
 		}
@@ -440,13 +452,14 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 
 	if (input->GetKeyPress(KEY_M) && gs != NONE && gs != WON && gs != LOST && gs != ENDED) {
 		menuVisible = !menuVisible;
-		if (gs == PAUSED) gs = SINGLEPLAYER;
+		gamestate prev = gs;
+		if (gs == PAUSED) gs = prev;
 		else gs = PAUSED;
 		ui->GetCursor()->SetVisible(menuVisible);
 		window_->SetVisible(menuVisible);
 	}
+
 	if (gs == SERVER) {
-		//std::cout << "updaing server" << std::endl;			//called on server
 		Network* network = GetSubsystem<Network>();
 		const Vector<SharedPtr<Connection>>& connections = network->GetClientConnections();
 		for (unsigned i = 0; i < connections.Size(); ++i) {
@@ -458,10 +471,10 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 			const Controls& controls = connection->GetControls();
 			Quaternion rotation(0.0f, controls.yaw_, 0.0f);
 
-			if (controls.buttons_ & CTRL_FORWARD) playerNode->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
-			if (controls.buttons_ & CTRL_LEFT) playerNode->Translate(Vector3::LEFT * MOVE_SPEED * timeStep);
-			if (controls.buttons_ & CTRL_RIGHT) playerNode->Translate(Vector3::RIGHT * MOVE_SPEED * timeStep);
-			if (controls.buttons_ & CTRL_BACK) playerNode->Translate(Vector3::BACK * MOVE_SPEED * timeStep);
+			//if (controls.buttons_ & CTRL_FORWARD) playerNode->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
+			//if (controls.buttons_ & CTRL_LEFT) playerNode->Translate(Vector3::LEFT * MOVE_SPEED * timeStep);
+			//if (controls.buttons_ & CTRL_RIGHT) playerNode->Translate(Vector3::RIGHT * MOVE_SPEED * timeStep);
+			//if (controls.buttons_ & CTRL_BACK) playerNode->Translate(Vector3::BACK * MOVE_SPEED * timeStep);
 		}
 	}
 }
@@ -476,15 +489,25 @@ void CharacterDemo::HandleCollision(StringHash eventType, VariantMap& eventData)
 			collided2->GetNode()->Remove();
 			missileCount--;
 			if (collided->GetNode()->GetName().Contains("Boid_", false)) {
-				//bS.boidList.erase(bS.boidList.begin() + collided->GetNode()->GetVar("boid_number").GetInt());
+				Node* player = scene_->GetNode(playerNodeID);
+				int health = player->GetVar("health").GetInt();
 				collided->GetNode()->SetEnabled(false);
-				if (playerHealth > 0) {
+				if (health > 0) {
 					uiRoot_->GetChild("warningText", false)->SetVisible(true);
 					fishKilled++;
 					bS.boidsLeft--;
-					playerHealth -= 5;
-					if (playerHealth <= 0) causeofdeath = "YOU KILLED TOO MANY FISHIES :(\nHOW ARE YOU GOING TO FEED YOUR FAMILY?";
-				//std::cout << "erased " << collided->GetNode()->GetVar("boid_number").GetInt() << std::endl;
+					health -= 5;
+					if (health <= 0) causeofdeath = "YOU KILLED TOO MANY FISHIES :(\nHOW ARE YOU GOING TO FEED YOUR FAMILY?";
+					player->SetVar("health", health);
+				}
+			}
+			if (collided->GetNode()->GetName().Contains("Shark", false)) {
+				int health = collided->GetNode()->GetVar("health").GetInt();
+				if (health > 0) {
+					health -= 10;
+					collided->GetNode()->SetVar("health", health);
+				} else {
+					collided->GetNode()->SetEnabled(false);
 				}
 			}
 		}
@@ -494,7 +517,6 @@ void CharacterDemo::HandleCollision(StringHash eventType, VariantMap& eventData)
 				collided2->GetNode()->SetEnabled(false);
 				fishCaught++;
 				bS.boidsLeft--;
-				Log::WriteRaw("Caught fish!! new fish count: " + (String)fishCaught);
 			}
 		}
 	}
@@ -507,10 +529,11 @@ void CharacterDemo::HandlePostUpdate(StringHash eventType, VariantMap& eventData
 			PhysicsWorld* pW_ = scene_->GetComponent<PhysicsWorld>();
 			pW_->DrawDebugGeometry(dRenderer, true);
 		}
-		if (gs == CLIENT || gs == SINGLEPLAYER) {
-			uiRoot_->GetChild("playerHealthBar", false)->SetWidth(playerHealth * 2);
+		if (gs == SINGLEPLAYER || gs == SERVER) {
+			Node* player = scene_->GetChild(playerNodeID);
+			uiRoot_->GetChild("playerHealthBar", false)->SetWidth(player->GetVar("health").GetInt() * 2);
 			Text* healthText = (Text*)uiRoot_->GetChild("playerHealthText", false);
-			healthText->SetText((String)playerHealth + "HP");
+			healthText->SetText((String)player->GetVar("health").GetInt() + "HP");
 
 			Text* fishKilledText = (Text*)uiRoot_->GetChild("fishKilledText", false);
 			fishKilledText->SetText((String)fishKilled);
@@ -518,7 +541,7 @@ void CharacterDemo::HandlePostUpdate(StringHash eventType, VariantMap& eventData
 			Text* fishCaughtText = (Text*)uiRoot_->GetChild("fishCaughtText", false);
 			fishCaughtText->SetText((String)fishCaught);
 
-			if (playerHealth <= 0) gs = LOST;
+			//if (player->GetVar("health").GetInt() <= 0) gs = LOST;
 			if (bS.boidsLeft <= 0) gs = WON;
 		}
 		if (gs == ENDED || gs == WON || gs == LOST) {
@@ -599,7 +622,6 @@ void CharacterDemo::HandleQuit(StringHash eventType, VariantMap& eventData) {
 void CharacterDemo::StartSingleplayer(StringHash eventType, VariantMap& eventData) {
 	UI* ui = GetSubsystem<UI>();
 	gs = SINGLEPLAYER;
-	playerHealth = 5;
 	fishKilled = 0;
 	fishCaught = 0;
 	countdowntimer = 300.0f;
@@ -621,8 +643,10 @@ void CharacterDemo::handleConnect(StringHash eventType, VariantMap& eventData) {
 
 void CharacterDemo::handleCreateServer(StringHash eventType, VariantMap& eventData) {
 	UI* ui = GetSubsystem<UI>();
-	Log::WriteRaw("(handleCreateServer) CALLED");
 	gs = SERVER;
+	fishKilled = 0;
+	fishCaught = 0;
+	countdowntimer = 300.0f;
 	CreateServerScene();
 	Network* network = GetSubsystem<Network>();
 	network->StartServer(SERVER_PORT);
@@ -664,24 +688,19 @@ void CharacterDemo::handlePhysicsPreStep(StringHash eventType, VariantMap& event
 	if (serverConnection) {
 		serverConnection->SetPosition(cameraNode_->GetPosition());
 		serverConnection->SetControls(FromClientToServerControls());
-	} else if (network->IsServerRunning()) {
-		ProcessClientControls();
 	}
 }
 
 Controls CharacterDemo::FromClientToServerControls() {
 	Input* input = GetSubsystem<Input>();
 	Controls controls;
-	controls.Set(CTRL_FORWARD, input->GetKeyDown(KEY_W));
-	controls.Set(CTRL_BACK, input->GetKeyDown(KEY_S));
-	controls.Set(CTRL_LEFT, input->GetKeyDown(KEY_A));
-	controls.Set(CTRL_RIGHT, input->GetKeyDown(KEY_D));
+	//controls.Set(CTRL_FORWARD, input->GetKeyDown(KEY_W));
+	//controls.Set(CTRL_BACK, input->GetKeyDown(KEY_S));
+	//controls.Set(CTRL_LEFT, input->GetKeyDown(KEY_A));
+	//controls.Set(CTRL_RIGHT, input->GetKeyDown(KEY_D));
+	controls.pitch_ = pitch_;
 	controls.yaw_ = yaw_;
 	return controls;
-}
-
-void CharacterDemo::ProcessClientControls() {
-
 }
 
 void CharacterDemo::handleCustomEvent(StringHash eventType, VariantMap& eventData) { 
@@ -702,12 +721,12 @@ void CharacterDemo::handleClientSceneLoaded(StringHash eventType, VariantMap& ev
 	using namespace ClientConnected;
 	Connection* newConnection = static_cast<Connection*>(eventData[P_CONNECTION].GetPtr());
 
-	Node* newObject = CreateCharacter();
-	serverObjects_[newConnection] = newObject;
+	//Node* newObject = createSpectator();
+	//serverObjects_[newConnection] = newObject;
 
-	VariantMap remoteEventData;
-	remoteEventData[PLAYER_ID] = newObject->GetID();
-	newConnection->SendRemoteEvent(E_CLIENTOBJECTAUTHORITY, true, remoteEventData);
+	//VariantMap remoteEventData;
+	//remoteEventData[PLAYER_ID] = newObject->GetID();
+	//newConnection->SendRemoteEvent(E_CLIENTOBJECTAUTHORITY, true, remoteEventData);
 }
 
 void CharacterDemo::CreateUI() {
@@ -746,8 +765,6 @@ void CharacterDemo::CreateUI() {
 	warningText->SetText("You're supposed to catch the fish, not kill them!");
 	warningText->SetFont(font, 16);
 	warningText->SetColor(Color::RED);
-	//warningText->SetPivot(warningText->GetWidth(), 0);
-	//Log::WriteRaw("width: " + (String)warningText->GetWidth() + " height: " + (String)warningText->GetHeight());
 	warningText->SetPosition(winWidth - warningText->GetWidth() - 10, winHeight - 30);
 	warningText->SetVisible(false);
 

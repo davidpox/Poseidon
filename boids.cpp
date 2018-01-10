@@ -9,9 +9,6 @@ float boids::FRepel_Factor = 2.0f;
 float boids::FAlign_Factor = 2.0f;
 
 boids::boids() {
-	steertimer = 0.0f;
-	steerrate = Random(5.0f, 10.0f);
-	bounds_ = BoundingBox(Vector3(-170.0f, 0.0f, -170.0f), Vector3(170.0f, 50.0f, 170.0f));
 }
 
 boids::~boids() {
@@ -25,7 +22,6 @@ void boids::Initialise(ResourceCache* pRc, Scene* pSc, int group, int boid_group
 	pNode->SetVar("boid_number", boidNum);
 	pNode->SetVar("group_number", group);
 	pNode->SetVar("boid_num_in_group", boid_group_num);
-
 
 	group_num = group;
 	
@@ -41,8 +37,6 @@ void boids::Initialise(ResourceCache* pRc, Scene* pSc, int group, int boid_group
 	pRigidBody->SetLinearVelocity(Vector3(Random(-20.0f,20.0f), 0.0f, Random(-20.0f,20.0f)));
 
 	pCollisionShape = pNode->CreateComponent<CollisionShape>();
-	//pCollisionShape->SetCone(1, 1, Vector3(0, 0, 0), Quaternion::IDENTITY);
-	//pCollisionShape->SetConvexHull(pObject->GetModel(), 0, Vector3::ONE, Vector3::ZERO, Quaternion::IDENTITY);
 	pCollisionShape->SetBox(Vector3(0.04, 0.1, 0.35));
 
 	
@@ -120,5 +114,5 @@ void boids::Update(float delta) {
 		pRigidBody->SetPosition(pos);
 	}
 
-	pNode->LookAt(pNode->GetPosition() + -pRigidBody->GetLinearVelocity());
+	pNode->LookAt(pNode->GetPosition() + -pRigidBody->GetLinearVelocity());	
 }

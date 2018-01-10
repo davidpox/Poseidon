@@ -116,7 +116,6 @@ private:
 	HashMap<Connection*, WeakPtr<Node>> serverObjects_;
 	void handleServerToClientObjectID(StringHash eventType, VariantMap& eventData);
 	Controls FromClientToServerControls();
-	void ProcessClientControls();
 
 	void CreateUI();
 	void CreateEndScreen();
@@ -132,6 +131,7 @@ private:
 
 	// General
 	boidsSet bS;
+	boidsSet sS;
 	missle mis;
 	ResourceCache* cache;
 	menu* menu_;
@@ -141,7 +141,7 @@ private:
 	bool menuVisible = true;
 	bool drawDebug_;
 	float MOVE_SPEED = 20.0f;
-	int playerHealth = 5;
+	//int playerHealth = 100;
 	String causeofdeath;
 
 	unsigned playerNodeID = -1;

@@ -20,43 +20,35 @@
 #include <Urho3D/Physics/RigidBody.h>
 #include <Urho3D/Resource/ResourceCache.h>
 #include <Urho3D/Scene/Scene.h>
-#include <algorithm>
-#include "boids.h"
-#include "shark.h"
-#include <vector>
+#include <Urho3D/Scene/LogicComponent.h>
+#include <iostream>
+#include <set>
+#include <Urho3D/IO/Log.h>
+#include <Urho3D/DebugNew.h>
 
-namespace Urho3D
-{
-	class Node;
-	class Scene;
-	class RigidBody;
-	class CollisionShape;
-	class ResourceCache;
-}
 // All Urho3D classes reside in namespace Urho3D
 using namespace Urho3D;
 
+static int NumSharks = 5;
+
+class shark {
+	static float Shark_Range;
+	static float FAttract_Factor;
 
 
-class boidsSet {
 public: 
-	
-	//boids boidList[NumBoids];
-	std::vector<boids> boidList;
-	std::vector<shark> sharkList;
-	int boidsLeft;
-	int sharksLeft = 0;
-	float sharkRegenCounter = 20.0f;
+	Node* nShark;
+	Node* playerNode;
+	RigidBody* rbShark;
+	Vector3 force;
+	float attackcooldown = 0.0f;
 
-	ResourceCache* cache;
-	Scene* scene;
 
-	boidsSet();
-	~boidsSet();
-	 
+	shark::shark();
+	shark::~shark();
+
 	void Initialise(ResourceCache* pRc, Scene* pSc);
-	void InitialiseShark(ResourceCache* pRc, Scene* pSc);
+	void ComputeForce(shark* pShark);
 	void Update(float delta);
-	void UpdateShark(float delta);
-	void RegenShark(float delta);
+	void attack();
 };
