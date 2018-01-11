@@ -56,7 +56,7 @@ public:
 	 
 	void Initialise(ResourceCache* pRc, Scene* pSc);
 	void InitialiseShark(ResourceCache* pRc, Scene* pSc);
-	void Update(float delta);
+	void Update(float delta, float updateCount);
 	void UpdateShark(float delta);
 	void RegenShark(float delta);
 };

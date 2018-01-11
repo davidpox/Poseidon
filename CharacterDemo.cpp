@@ -433,7 +433,9 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 			playerLight->SetEnabled(!playerLight->IsEnabled());
 		}
 		if (gs != CLIENT) {
-			bS.Update(timeStep);
+			bS.Update(timeStep, updateCount);
+			if (updateCount == 0) updateCount++;
+			else updateCount--;
 			sS.UpdateShark(timeStep);
 		}
 

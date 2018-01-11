@@ -29,7 +29,7 @@
 // All Urho3D classes reside in namespace Urho3D
 using namespace Urho3D;
 
-static int NumBoids = 200;
+static int NumBoids = 400;
 
 class boids {
 
@@ -40,6 +40,7 @@ class boids {
 	static float FRepel_Factor;
 	static float FAlign_Factor;
 	static float FAttract_Vmax;
+	static float copy_range;
 	static int MAX_BOIDS_GROUP_SIZE;
 
 public: 

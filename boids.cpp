@@ -3,6 +3,7 @@
 float boids::Range_FAttract = 20.0f;
 float boids::Range_FRepel = 3.0f;
 float boids::Range_FAlign = 5.0f;
+float boids::copy_range = 5.0f;
 float boids::FAttract_Vmax = 2.0f;
 float boids::FAttract_Factor = 4.0f;
 float boids::FRepel_Factor = 2.0f;
@@ -56,6 +57,10 @@ void boids::ComputeForce(boids* pBoids) {
 
 		Vector3 sep = pRigidBody->GetPosition() - pBoids[i].pRigidBody->GetPosition();
 		float d = sep.Length();
+		//if (d < copy_range) {
+		//	force = pBoids[i].force;
+		//	continue;
+		//}
 		if (d < Range_FAttract) {
 			CoM += pBoids[i].pRigidBody->GetPosition();
 			n++;

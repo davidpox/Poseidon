@@ -164,6 +164,7 @@ private:
 	Text* timerText;
 	float countdowntimer = 300.0f;
 	float fpsUpdateCounter = 1.0f;
+	int updateCount = 0;
 
 	//DEBUG
 	void UpdateFPS(StringHash eventType, VariantMap& eventData);
