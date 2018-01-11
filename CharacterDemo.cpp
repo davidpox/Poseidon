@@ -96,6 +96,7 @@ void CharacterDemo::Start()
 	Sample::Start();
 	OpenConsoleWindow();
 	cache = GetSubsystem<ResourceCache>();
+	CreateConsoleAndDebugHud();
 	gs = NONE;
 	CreateMainMenu();
 	SubscribeToEvents();
@@ -132,17 +133,16 @@ void CharacterDemo::CreateServerScene()
 	s_skybox->SetModel(cache->GetResource<Model>("Models/Box.mdl"));
 	s_skybox->SetMaterial(cache->GetResource<Material>("Materials/Skybox.xml"));
 
-	bS.Initialise(cache, scene_);
-	//sS.InitialiseShark(cache, scene_);
-
 	Node* newPlayer = CreateCharacter();
 	cameraNode_->SetPosition(newPlayer->GetPosition() + Vector3(0.0f, 2.0f, 0.0f));
 	cameraNode_->SetParent(newPlayer);
 
+	sS.InitialiseShark(cache, scene_);
+	bS.Initialise(cache, scene_);
+
 	CreateUI();
 	CreateEnvironemnt();
 }
-
 
 void CharacterDemo::CreateClientScene() {
 	// SCENE CREATION
@@ -177,12 +177,17 @@ void CharacterDemo::CreateClientScene() {
 		cameraNode_->SetPosition(newPlayer->GetPosition() + Vector3(0.0f, 2.0f, 0.0f));
 		cameraNode_->SetParent(newPlayer);
 
-		//sS.InitialiseShark(cache, scene_);
+		sS.InitialiseShark(cache, scene_);
 		bS.Initialise(cache, scene_);
 	}
 	if (gs == CLIENT) {
-//		Node* host = scene_->GetChild("Player", true);
-//		cameraNode_->SetParent(host);
+		Node* playerNode = scene_->GetChild("Player", false);
+		if (playerNode) {
+			std::cout << "hooked cam to player" << std::endl;
+			cameraNode_->SetParent(playerNode);
+		} else {
+			std::cout << "FAILED to hook cam to player" << std::endl;
+		}
 	}
 	CreateEnvironemnt();
 	CreateUI();
@@ -347,7 +352,6 @@ void CharacterDemo::SubscribeToEvents()
 
 void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 {
-	UI* ui = GetSubsystem<UI>();
 	using namespace Update;
 
 	float timeStep = eventData[P_TIMESTEP].GetFloat();
@@ -355,6 +359,15 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 	Input* input = GetSubsystem<Input>();
 	const float MOUSE_SENSITIVITY = 0.1f;
 	IntVector2 mouseMove = input->GetMouseMove();
+	UI* ui = GetSubsystem<UI>();
+
+	fpsUpdateCounter -= timeStep;
+	if (fpsUpdateCounter <= 0.0f) {
+		Text* counter = (Text*)uiRoot_->GetChild("fpscounter", true);
+		FrameInfo frameInfo = GetSubsystem<Renderer>()->GetFrameInfo();
+		counter->SetText("FPS: " + String(ceil(1.0 / frameInfo.timeStep_)));
+		fpsUpdateCounter = 1.0f;
+	}
 
 	if (!ui->GetCursor()->IsVisible() && scene_ != nullptr && (gs != NONE && gs != WON && gs != LOST && gs != ENDED)) {
 		yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
@@ -363,7 +376,7 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 		MOVE_SPEED = 20.0f;
 
 		if (gs == SINGLEPLAYER || gs == SERVER || gs == CLIENT) {
-			/*if(!menuVisible) {
+			if(!menuVisible) {
 				if(countdowntimer >= 0.0f) {
 					countdowntimer -= timeStep;
 					String min = (String)((int)countdowntimer / 60 );
@@ -375,10 +388,10 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 					gs = ENDED;
 					causeofdeath = "The time ran out!";
 				}
-			}*/
+			}
 
 			if (gs != CLIENT) {
-				Node* player = scene_->GetNode(playerNodeID);
+				Node* player = scene_->GetChild("Player", true);
 				player->SetRotation(Quaternion(pitch_, yaw_, 0.0f));
 				if (input->GetKeyDown(KEY_SHIFT)) MOVE_SPEED *= 10.0f;
 				if (input->GetKeyDown(KEY_W)) player->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
@@ -421,16 +434,7 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 		}
 		if (gs != CLIENT) {
 			bS.Update(timeStep);
-			//sS.UpdateShark(timeStep);
-
-			if (input->GetKeyPress(KEY_N)) {
-				File saveFile(context_, GetSubsystem<FileSystem>()->GetProgramDir() + "Data/Scenes/map.xml", FILE_WRITE);
-				scene_->SaveXML(saveFile);
-			}
-			if (input->GetKeyPress(KEY_B)) {
-				File loadFile(context_, GetSubsystem<FileSystem>()->GetProgramDir() + "Data/Scenes/map.xml", FILE_READ);
-				scene_->LoadXML(loadFile);
-			}
+			sS.UpdateShark(timeStep);
 		}
 
 		if (gs == SERVER || gs == SINGLEPLAYER) {
@@ -443,18 +447,13 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 		}
 	}
 	
-	if (gs == CLIENT) {
-		Node* playerNode = scene_->GetChild("Player", false);
-		if (playerNode) {
-			cameraNode_->SetPosition(playerNode->GetPosition());
-		}
-	}
-
 	if (input->GetKeyPress(KEY_M) && gs != NONE && gs != WON && gs != LOST && gs != ENDED) {
 		menuVisible = !menuVisible;
-		gamestate prev = gs;
-		if (gs == PAUSED) gs = prev;
-		else gs = PAUSED;
+		if (gs == PAUSED) gs = t;
+		else  {
+			t = gs;
+			gs = PAUSED;
+		}
 		ui->GetCursor()->SetVisible(menuVisible);
 		window_->SetVisible(menuVisible);
 	}
@@ -469,7 +468,8 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 			if (!playerNode) continue;
 
 			const Controls& controls = connection->GetControls();
-			Quaternion rotation(0.0f, controls.yaw_, 0.0f);
+			Quaternion rotation(controls.pitch_, controls.yaw_, 0.0f);
+
 
 			//if (controls.buttons_ & CTRL_FORWARD) playerNode->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
 			//if (controls.buttons_ & CTRL_LEFT) playerNode->Translate(Vector3::LEFT * MOVE_SPEED * timeStep);
@@ -530,7 +530,7 @@ void CharacterDemo::HandlePostUpdate(StringHash eventType, VariantMap& eventData
 			pW_->DrawDebugGeometry(dRenderer, true);
 		}
 		if (gs == SINGLEPLAYER || gs == SERVER) {
-			Node* player = scene_->GetChild(playerNodeID);
+			Node* player = scene_->GetChild("Player", true);
 			uiRoot_->GetChild("playerHealthBar", false)->SetWidth(player->GetVar("health").GetInt() * 2);
 			Text* healthText = (Text*)uiRoot_->GetChild("playerHealthText", false);
 			healthText->SetText((String)player->GetVar("health").GetInt() + "HP");
@@ -541,7 +541,7 @@ void CharacterDemo::HandlePostUpdate(StringHash eventType, VariantMap& eventData
 			Text* fishCaughtText = (Text*)uiRoot_->GetChild("fishCaughtText", false);
 			fishCaughtText->SetText((String)fishCaught);
 
-			//if (player->GetVar("health").GetInt() <= 0) gs = LOST;
+			if (player->GetVar("health").GetInt() <= 0) gs = LOST;
 			if (bS.boidsLeft <= 0) gs = WON;
 		}
 		if (gs == ENDED || gs == WON || gs == LOST) {
@@ -573,10 +573,12 @@ void CharacterDemo::spawnMissle() {
 }
 
 void CharacterDemo::CreateMainMenu() {
-
+	Graphics* graphics = GetSubsystem<Graphics>();
 	UI* ui = GetSubsystem<UI>();
 	XMLFile* uiStyle = cache->GetResource<XMLFile>("UI/DefaultStyle.xml");
 	uiRoot_->SetDefaultStyle(uiStyle);
+	float winWidth = (float)graphics->GetWidth();
+	float winHeight = (float)graphics->GetHeight();
 
 	SharedPtr<Cursor> cursor(new Cursor(context_));
 	cursor->SetStyleAuto(uiStyle);
@@ -585,24 +587,58 @@ void CharacterDemo::CreateMainMenu() {
 	window_ = new Window(context_);
 	uiRoot_->AddChild(window_);
 
-	Font* font = cache->GetResource<Font>("Fonts/FRAMDCN.TTF");
+	Texture2D* background = cache->GetResource<Texture2D>("Textures/background1.jpg");
+	Sprite* sprite = uiRoot_->CreateChild<Sprite>();
+	sprite->SetName("background-texture");
+	sprite->SetTexture(background);
+	sprite->SetHotSpot(0, 0);
+	sprite->SetSize(1024, 576);
+	sprite->SetPriority(-100);
+
+	Texture2D* logo = cache->GetResource<Texture2D>("Textures/PoseidonLogo.png");
+	Sprite* logosprite = uiRoot_->CreateChild<Sprite>();
+	logosprite->SetName("poseidonlogo");
+	logosprite->SetTexture(logo);
+	logosprite->SetHotSpot(80, 100);
+	logosprite->SetSize(160, 200);
+	logosprite->SetPosition(winWidth /2, (logosprite->GetHeight() / 2) + 20);
+
+	Font* font = cache->GetResource<Font>("Fonts/Roboto-Thin.TTF");
 	window_->SetMinWidth(200);
 	window_->SetLayout(LM_VERTICAL, 6, IntRect(6, 6, 6, 6));
 	window_->SetAlignment(HA_CENTER, VA_CENTER);
 	window_->SetName("Window");
 	window_->SetStyleAuto();
 
+	window_->SetPosition(0, 100);
+
+	Text* fpscounter = uiRoot_->CreateChild<Text>();
+	fpscounter->SetName("fpscounter");
+	fpscounter->SetText("FPS: 0");
+	fpscounter->SetFont(font, 20);
+	fpscounter->SetColor(Color::GREEN);
+	fpscounter->SetPosition(0, 0);
+	fpscounter->SetPriority(1000);
+	
+
 	Text* menuText = menu_->CreateText("MAIN MENU", 16, window_, font, 16);
 	menuText->SetColor(Color::WHITE);
 	Button* btnSingleplayer = menu_->CreateButton("SINGLEPLAYER", 24, window_, font);
+	btnSingleplayer->SetName("bSingleplayer");
 	
 	Text* serverText = menu_->CreateText("SERVER", 16, window_, font, 16);
 	serverText->SetColor(Color::WHITE);
+	serverText->SetName("serverTitle");
 	leIPAddress = menu_->CreateLineEdit("", 24, window_, font);
+	leIPAddress->SetName("ipLE");
 	Button* btnConnect = menu_->CreateButton("CONNECT", 24, window_, font);
+	btnConnect->SetName("bConnect");
 	Button* btnCreateServer = menu_->CreateButton("START SERVER", 24, window_, font);
+	btnCreateServer->SetName("bCreateServer");
 	Text* spacer1 = menu_->CreateText("", 16, window_, font, 16);
+	spacer1->SetName("spacer1");
 	Button* btnDisconnect = menu_->CreateButton("DISCONNECT", 24, window_, font);
+	btnDisconnect->SetName("bDisconnect");
 	Button* btnQuit = menu_->CreateButton("QUIT", 24, window_, font);
 	//ToolTip* tp = menu_->CreateToolTip("Exits the application", font, 12, window_);
 	//QuitButton->AddChild(tp);
@@ -622,6 +658,20 @@ void CharacterDemo::HandleQuit(StringHash eventType, VariantMap& eventData) {
 void CharacterDemo::StartSingleplayer(StringHash eventType, VariantMap& eventData) {
 	UI* ui = GetSubsystem<UI>();
 	gs = SINGLEPLAYER;
+	{
+		uiRoot_->RemoveChild(uiRoot_->GetChild("background-texture", false));
+		uiRoot_->RemoveChild(uiRoot_->GetChild("poseidonlogo", false));
+		window_->GetChild("bSingleplayer", false)->Remove();
+		window_->GetChild("serverTitle", false)->Remove();
+		window_->GetChild("ipLE", false)->Remove();
+		window_->GetChild("bConnect", false)->Remove();
+		window_->GetChild("bCreateServer", false)->Remove();
+		window_->GetChild("spacer1", false)->Remove();
+		window_->GetChild("bDisconnect", false)->Remove();
+		window_->SetPosition(0, 0);
+		window_->SetHeight(50);
+	}
+
 	fishKilled = 0;
 	fishCaught = 0;
 	countdowntimer = 300.0f;
@@ -633,16 +683,41 @@ void CharacterDemo::StartSingleplayer(StringHash eventType, VariantMap& eventDat
 
 void CharacterDemo::handleConnect(StringHash eventType, VariantMap& eventData) {
 	gs = CLIENT;
+	{
+		uiRoot_->RemoveChild(uiRoot_->GetChild("background-texture", false));
+		uiRoot_->RemoveChild(uiRoot_->GetChild("poseidonlogo", false));
+		window_->GetChild("bSingleplayer", false)->Remove();
+		window_->GetChild("serverTitle", false)->Remove();
+		window_->GetChild("ipLE", false)->Remove();
+		window_->GetChild("bConnect", false)->Remove();
+		window_->GetChild("bCreateServer", false)->Remove();
+		window_->GetChild("spacer1", false)->Remove();
+		window_->GetChild("bDisconnect", false)->Remove();
+		window_->SetPosition(0, 0);
+		window_->SetHeight(50);
+	}
 	CreateClientScene();
 	Network* network = GetSubsystem<Network>();
 	String address = leIPAddress->GetText().Trimmed();
 	if (address.Empty()) address = "localhost";
 	network->Connect(address, SERVER_PORT, scene_);
-
 }
 
 void CharacterDemo::handleCreateServer(StringHash eventType, VariantMap& eventData) {
 	UI* ui = GetSubsystem<UI>();
+	{
+		uiRoot_->RemoveChild(uiRoot_->GetChild("background-texture", false));
+		uiRoot_->RemoveChild(uiRoot_->GetChild("poseidonlogo", false));
+		window_->GetChild("bSingleplayer", false)->Remove();
+		window_->GetChild("serverTitle", false)->Remove();
+		window_->GetChild("ipLE", false)->Remove();
+		window_->GetChild("bConnect", false)->Remove();
+		window_->GetChild("bCreateServer", false)->Remove();
+		window_->GetChild("spacer1", false)->Remove();
+		window_->GetChild("bDisconnect", false)->Remove();
+		window_->SetPosition(0, 0);
+		window_->SetHeight(50);
+	}
 	gs = SERVER;
 	fishKilled = 0;
 	fishCaught = 0;
@@ -650,6 +725,7 @@ void CharacterDemo::handleCreateServer(StringHash eventType, VariantMap& eventDa
 	CreateServerScene();
 	Network* network = GetSubsystem<Network>();
 	network->StartServer(SERVER_PORT);
+	menuVisible = !menuVisible;
 	window_->SetVisible(false);
 	ui->GetCursor()->SetVisible(false);
 }
@@ -708,18 +784,20 @@ void CharacterDemo::handleCustomEvent(StringHash eventType, VariantMap& eventDat
 }
 
 void CharacterDemo::handleServerToClientObjectID(StringHash eventType, VariantMap& eventData) { 
-	clientObjectID_ = eventData[PLAYER_ID].GetUInt();
-	printf("ClientID: %i", clientObjectID_);
+	//clientObjectID_ = eventData[PLAYER_ID].GetUInt();
+	//printf("ClientID: %i", clientObjectID_);
 }
 
 void CharacterDemo::handleConnectedToServer(StringHash eventType, VariantMap& eventData) {
-	std::cout << "Connected to server!!!!!!!!1" << std::endl;
+	
 } 
 
 void CharacterDemo::handleClientSceneLoaded(StringHash eventType, VariantMap& eventData) {
 	std::cout << "Client loaded scene!" << std::endl;
 	using namespace ClientConnected;
 	Connection* newConnection = static_cast<Connection*>(eventData[P_CONNECTION].GetPtr());
+
+
 
 	//Node* newObject = createSpectator();
 	//serverObjects_[newConnection] = newObject;
@@ -732,7 +810,7 @@ void CharacterDemo::handleClientSceneLoaded(StringHash eventType, VariantMap& ev
 void CharacterDemo::CreateUI() {
 	UI* ui = GetSubsystem<UI>();
 	Graphics* graphics = GetSubsystem<Graphics>();
-	Font* font = cache->GetResource<Font>("Fonts/FRAMDCN.TTF");
+	Font* font = cache->GetResource<Font>("Fonts/Roboto-Thin.ttf");
 	float winWidth = (float)graphics->GetWidth();
 	float winHeight = (float)graphics->GetHeight();
 
@@ -809,11 +887,20 @@ void CharacterDemo::CreateUI() {
 void CharacterDemo::CreateEndScreen() {
 	UI* ui = GetSubsystem<UI>();
 	Graphics* graphics = GetSubsystem<Graphics>();
-	Font* font = cache->GetResource<Font>("Fonts/FRAMDCN.TTF");
+	//XMLFile* uiStyle = cache->GetResource<XMLFile>("UI/DefaultStyle.xml");
+	Font* font = cache->GetResource<Font>("Fonts/Roboto-Thin.ttf");
 	float winWidth = (float)graphics->GetWidth();
 	float winHeight = (float)graphics->GetHeight();
 
 	ui->GetCursor()->SetVisible(true);
+
+	Texture2D* background = cache->GetResource<Texture2D>("Textures/background1.jpg");
+	Sprite* sprite = uiRoot_->CreateChild<Sprite>();
+	sprite->SetName("background-texture");
+	sprite->SetTexture(background);
+	sprite->SetHotSpot(0, 0);
+	sprite->SetSize(1024, 576);
+	sprite->SetPriority(-100);
 
 	Texture2D* tridentTexture = cache->GetResource<Texture2D>("Textures/TridentFull.png");
 	Sprite* tridentSprite = uiRoot_->CreateChild<Sprite>();
@@ -822,14 +909,6 @@ void CharacterDemo::CreateEndScreen() {
 	tridentSprite->SetHotSpot(60, 60);
 	tridentSprite->SetSize(120, 120);
 	tridentSprite->SetPosition(Vector2(winWidth / 2, 130));
-
-	Window* buttonWindow = new Window(context_);
-	uiRoot_->AddChild(buttonWindow);
-
-	buttonWindow->SetMinWidth(200);
-	buttonWindow->SetLayout(LM_VERTICAL, 6, IntRect(6, 6, 6, 6));
-	buttonWindow->SetName("ButtonWindow");
-	buttonWindow->SetStyleAuto();
 
 	Text* endedTitleText = uiRoot_->CreateChild<Text>();
 	endedTitleText->SetName("endedTitle");
@@ -862,12 +941,4 @@ void CharacterDemo::CreateEndScreen() {
 	fishesKilledText->SetFont(font, 20);
 	fishesKilledText->SetColor(Color::WHITE);
 	fishesKilledText->SetPosition((winWidth / 2) - (fishesKilledText->GetWidth() / 2), fishesCaughtText->GetPosition().y_ + 30);
-
-	Button* playAgainButton = menu_->CreateButton("Play again!", 24, buttonWindow, font);
-	Button* quitButton = menu_->CreateButton("Quit", 24, buttonWindow, font);
-
-	SubscribeToEvent(playAgainButton, E_RELEASED, URHO3D_HANDLER(CharacterDemo, StartSingleplayer));
-	SubscribeToEvent(quitButton, E_RELEASED, URHO3D_HANDLER(CharacterDemo, HandleQuit));
-
-	buttonWindow->SetPosition((winWidth / 2) - (buttonWindow->GetWidth() / 2), fishesKilledText->GetPosition().y_ + fishesKilledText->GetHeight() + 10);
 }

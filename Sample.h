@@ -90,13 +90,13 @@ protected:
     /// Mouse mode option to use in the sample.
     MouseMode useMouseMode_;
 
+	void CreateConsoleAndDebugHud();
+
 private:
     /// Create logo.
     void CreateLogo();
     /// Set custom window Title & Icon
     void SetWindowTitleAndIcon();
-    /// Create console and debug HUD.
-    void CreateConsoleAndDebugHud();
     /// Handle request for mouse mode on web platform.
     void HandleMouseModeRequest(StringHash eventType, VariantMap& eventData);
     /// Handle request for mouse mode change on web platform.
