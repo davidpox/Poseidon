@@ -47,27 +47,4 @@ void boidsSet::UpdateShark(float delta) {
 		sharkList[i].Update(delta);
 		
 	}
-	/*RegenShark(delta);*/
 }
-
-//void boidsSet::RegenShark(float delta) {
-//
-//	sharkRegenCounter -= delta;
-//
-//	if (sharkRegenCounter <= 0.0f) {
-//		std::cout << "shark timer ran out!" << std::endl;
-//		if (sharksLeft < 5) {
-//			std::cout << "less than 5 sharks!" << std::endl;
-//			int sharksToRegen = 5 - sharksLeft;
-//			for (int i = 0; i < sharksToRegen; i++) {
-//				std::cout << "created new shark!" << std::endl;
-//				sharkList.push_back(shark());
-//				sharksLeft++;
-//				sharkList[i].Initialise(cache, scene);
-//			}
-//			sharkRegenCounter = 20.0f;
-//		} else {
-//			sharkRegenCounter = 20.0f;
-//		}
-//	}
-//}

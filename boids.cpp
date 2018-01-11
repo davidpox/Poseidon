@@ -3,7 +3,7 @@
 float boids::Range_FAttract = 20.0f;
 float boids::Range_FRepel = 3.0f;
 float boids::Range_FAlign = 5.0f;
-float boids::copy_range = 5.0f;
+float boids::copy_range = 10.0f;
 float boids::FAttract_Vmax = 2.0f;
 float boids::FAttract_Factor = 4.0f;
 float boids::FRepel_Factor = 2.0f;
@@ -38,9 +38,7 @@ void boids::Initialise(ResourceCache* pRc, Scene* pSc, int group, int boid_group
 	pRigidBody->SetLinearVelocity(Vector3(Random(-20.0f,20.0f), 0.0f, Random(-20.0f,20.0f)));
 
 	pCollisionShape = pNode->CreateComponent<CollisionShape>();
-	pCollisionShape->SetBox(Vector3(0.04, 0.1, 0.35));
-
-	
+	pCollisionShape->SetBox(Vector3(0.04, 0.1, 0.35));	
 }
 
 void boids::ComputeForce(boids* pBoids) {

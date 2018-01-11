@@ -97,14 +97,10 @@ void shark::attack() {
 	Vector3 playerPos = playerNode->GetPosition();
 	Vector3 seperation = pos - playerPos;
 	if (seperation.Length() < 15.0f) {
-		std::cout <<"attempted to attack" << std::endl;
 		int health = playerNode->GetVar("health").GetInt();
 		if (health > 0) {
-			std::cout << "health greater than 0"<< std::endl;
 			health -= 10;
 			playerNode->SetVar("health", health);
-		} else {
-			std::cout << "health not great than 0" << std::endl;
-		}
+		} 
 	}
 }

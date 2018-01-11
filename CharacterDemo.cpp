@@ -362,13 +362,14 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 	UI* ui = GetSubsystem<UI>();
 
 	fpsUpdateCounter -= timeStep;
+
 	if (fpsUpdateCounter <= 0.0f) {
 		Text* counter = (Text*)uiRoot_->GetChild("fpscounter", true);
 		FrameInfo frameInfo = GetSubsystem<Renderer>()->GetFrameInfo();
 		counter->SetText("FPS: " + String(ceil(1.0 / frameInfo.timeStep_)));
+		//Log::WriteRaw(String(ceil(1.0 / frameInfo.timeStep_ )) + "\n");
 		fpsUpdateCounter = 1.0f;
 	}
-
 	if (!ui->GetCursor()->IsVisible() && scene_ != nullptr && (gs != NONE && gs != WON && gs != LOST && gs != ENDED)) {
 		yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
 		pitch_ += MOUSE_SENSITIVITY * mouseMove.y_;
