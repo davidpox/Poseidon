@@ -49,9 +49,9 @@ class Touch;
 ///     - Implementing 1st and 3rd person cameras, using raycasts to avoid the 3rd person camera clipping into scenery
 ///     - Defining attributes of a custom component so that it can be saved and loaded
 ///     - Using touch inputs/gyroscope for iOS/Android (implemented through an external file)
-class CharacterDemo : public Sample
+class poseidon : public Sample
 {
-    URHO3D_OBJECT(CharacterDemo, Sample);
+    URHO3D_OBJECT(poseidon, Sample);
 
 	enum gamestate {
 		NONE,
@@ -66,9 +66,9 @@ class CharacterDemo : public Sample
 
 public:
     /// Construct.
-    CharacterDemo(Context* context);
+    poseidon(Context* context);
     /// Destruct.
-    ~CharacterDemo();
+    ~poseidon();
 
     /// Setup after engine initialization and before running the main loop.
     virtual void Start();
@@ -107,14 +107,9 @@ private:
 
 	/* Server Callbacks */
 	void handleClientConnected(StringHash eventType, VariantMap& eventData);
-	void handleClientDisconnected(StringHash eventType, VariantMap& eventData);
 	void handlePhysicsPreStep(StringHash eventType, VariantMap& eventData);
-	void handleCustomEvent(StringHash eventType, VariantMap& eventData);
-	void handleConnectedToServer(StringHash eventType, VariantMap& eventData);
-	void handleClientSceneLoaded(StringHash eventType, VariantMap& eventData);
 	unsigned clientObjectID_ = 0;
 	HashMap<Connection*, WeakPtr<Node>> serverObjects_;
-	void handleServerToClientObjectID(StringHash eventType, VariantMap& eventData);
 	Controls FromClientToServerControls();
 
 	void CreateUI();
@@ -135,13 +130,10 @@ private:
 	missle mis;
 	ResourceCache* cache;
 	menu* menu_;
-	//Light* l_flashlight;
-	//Node* n_sub; // player node
 	Terrain* t_terrain;
 	bool menuVisible = true;
 	bool drawDebug_;
 	float MOVE_SPEED = 20.0f;
-	//int playerHealth = 100;
 	String causeofdeath;
 
 	unsigned playerNodeID = -1;
@@ -165,7 +157,4 @@ private:
 	float countdowntimer = 300.0f;
 	float fpsUpdateCounter = 0.0f;
 	int updateCount = 0;
-
-	//DEBUG
-
 };

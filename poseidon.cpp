@@ -51,7 +51,7 @@
 #include <Urho3D/Engine/Console.h>
 
 #include "Character.h"
-#include "CharacterDemo.h"
+#include "poseidon.h"
 #include "Touch.h"
 #include <Math.h>
 
@@ -71,28 +71,18 @@
 
 #include <Urho3D/DebugNew.h>
 
-static const StringHash E_CUSTOMEVENT("CustomEvent");
-static const StringHash E_CLIENTOBJECTAUTHORITY("ClientObjectAuthority");
-static const StringHash PLAYER_ID("IDENTITY");
-static const StringHash E_CLIENTISREADY("ClientReadyToStart");
+URHO3D_DEFINE_APPLICATION_MAIN(poseidon)
 
-URHO3D_DEFINE_APPLICATION_MAIN(CharacterDemo)
-
-CharacterDemo::CharacterDemo(Context* context) :
+poseidon::poseidon(Context* context) :
 	Sample(context),
 	firstPerson_(false),
 	MAX_MISSLES(10),
 	drawDebug_(false),
-	uiRoot_(GetSubsystem<UI>()->GetRoot())
-{
-}
+	uiRoot_(GetSubsystem<UI>()->GetRoot()) { }
 
-CharacterDemo::~CharacterDemo()
-{
-}
+poseidon::~poseidon() { }
 
-void CharacterDemo::Start()
-{
+void poseidon::Start() {
 	Sample::Start();
 	OpenConsoleWindow();
 	cache = GetSubsystem<ResourceCache>();
@@ -102,8 +92,7 @@ void CharacterDemo::Start()
 	SubscribeToEvents();
 }
 
-void CharacterDemo::CreateServerScene()
-{
+void poseidon::CreateServerScene() {
 	// SCENE CREATION
 	cache = GetSubsystem<ResourceCache>();
 
@@ -144,20 +133,17 @@ void CharacterDemo::CreateServerScene()
 	CreateEnvironemnt();
 }
 
-void CharacterDemo::CreateClientScene() {
-	// SCENE CREATION
+void poseidon::CreateClientScene() {
 	scene_ = new Scene(context_);
 	scene_->CreateComponent<Octree>(LOCAL);
 	scene_->CreateComponent<PhysicsWorld>(LOCAL);
 	scene_->CreateComponent<DebugRenderer>(LOCAL);
 
-	// CAMERA CREATION
 	cameraNode_ = scene_->CreateChild("SpectatorCamera");
 	Camera* camera = cameraNode_->CreateComponent<Camera>();
 	camera->SetFarClip(750.0f);
 	GetSubsystem<Renderer>()->SetViewport(0, new Viewport(context_, scene_, camera));
 
-	// ZONE & FOG CREATION
 	Node* zoneNode = scene_->CreateChild("Zone", LOCAL);
 	Zone* zone = zoneNode->CreateComponent<Zone>();
 	zone->SetAmbientColor(Color(0.15f, 0.15f, 0.15f));
@@ -183,18 +169,14 @@ void CharacterDemo::CreateClientScene() {
 	if (gs == CLIENT) {
 		Node* playerNode = scene_->GetChild("Player", false);
 		if (playerNode) {
-			std::cout << "hooked cam to player" << std::endl;
 			cameraNode_->SetParent(playerNode);
-		} else {
-			std::cout << "FAILED to hook cam to player" << std::endl;
-		}
+		} 
 	}
 	CreateEnvironemnt();
 	CreateUI();
 }
 
-Node* CharacterDemo::CreateCharacter()
-{
+Node* poseidon::CreateCharacter() {
 	Node* n_sub = scene_->CreateChild("Player");
 	n_sub->SetVar("health", 100);
 	n_sub->SetPosition(Vector3(0.0f, 5.0f, 0.0f));
@@ -222,9 +204,6 @@ Node* CharacterDemo::CreateCharacter()
 	csSubHook->SetBox(Vector3(10.0f, 10.0f, 1.0f));
 	csSubHook->SetPosition(Vector3(0.0f, 5.0f, 23.0f));
 
-	playerNodeID = n_sub->GetID();
-
-	// CREATE PLAYER LIGHT
 	Node* n_flashlight = n_sub->CreateChild("Flashlight");
 	n_flashlight->SetDirection(cameraNode_->GetDirection());
 	Light* l_flashlight = n_flashlight->CreateComponent<Light>();
@@ -236,28 +215,12 @@ Node* CharacterDemo::CreateCharacter()
 	l_flashlight->SetFov(45);
 	l_flashlight->SetEnabled(false);
 
+	
+	playerNodeID = n_sub->GetID();
 	return n_sub;
 }
 
-void CharacterDemo::CreateEnvironemnt()
-{
-	
-	//// CREATE TERRAIN
-	//Node* n_terrain = scene_->CreateChild("Terrrain", LOCAL);
-	//n_terrain->SetPosition(Vector3(0.0f, -5.0f, 0.0f));
-	//t_terrain = n_terrain->CreateComponent<Terrain>();
-	//t_terrain->SetSpacing(Vector3(0.4f, 0.05f, 0.2f));
-	////t_terrain->SetSmoothing(true);
-	//t_terrain->SetHeightMap(cache->GetResource<Image>("Textures/HeightMap.png"));
-	//t_terrain->SetMaterial(cache->GetResource<Material>("Materials/Terrain.xml"));
-	//t_terrain->SetPatchSize(64);
-	//t_terrain->SetCastShadows(false);
-	////t_terrain->SetOccluder(true);
-	//RigidBody* rb_terrain = n_terrain->CreateComponent<RigidBody>();
-	//rb_terrain->SetCollisionLayer(2);
-	//CollisionShape* cs_terrain = n_terrain->CreateComponent<CollisionShape>();
-	//cs_terrain->SetTerrain();
-
+void poseidon::CreateEnvironemnt() {
 	Node* nBox = scene_->CreateChild("terrain", LOCAL);
 	nBox->SetPosition(Vector3(0.0f, 0.0f, 0.0f));
 	nBox->SetScale(Vector3(409.6f, 1.0f, 204.8f));
@@ -330,28 +293,15 @@ void CharacterDemo::CreateEnvironemnt()
 	cs_wall_5->SetBox(Vector3::ONE);
 }
 
-void CharacterDemo::SubscribeToEvents()
-{
-	SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(CharacterDemo, HandleUpdate));
-	SubscribeToEvent(E_POSTUPDATE, URHO3D_HANDLER(CharacterDemo, HandlePostUpdate));
-
-	SubscribeToEvent(E_NODECOLLISION, URHO3D_HANDLER(CharacterDemo, HandleCollision));
-
-	SubscribeToEvent(E_CLIENTCONNECTED, URHO3D_HANDLER(CharacterDemo, handleClientConnected));
-	SubscribeToEvent(E_CLIENTDISCONNECTED, URHO3D_HANDLER(CharacterDemo, handleClientDisconnected));
-	SubscribeToEvent(E_SERVERCONNECTED, URHO3D_HANDLER(CharacterDemo, handleConnectedToServer));
-	SubscribeToEvent(E_PHYSICSPRESTEP, URHO3D_HANDLER(CharacterDemo, handlePhysicsPreStep));
-	SubscribeToEvent(E_CLIENTSCENELOADED, URHO3D_HANDLER(CharacterDemo, handleClientSceneLoaded));
-
-	//SubscribeToEvent(E_CUSTOMEVENT, URHO3D_HANDLER(CharacterDemo, handleCustomEvent));
-	//GetSubsystem<Network>()->RegisterRemoteEvent(E_CUSTOMEVENT);
-
-	SubscribeToEvent(E_CLIENTOBJECTAUTHORITY, URHO3D_HANDLER(CharacterDemo, handleServerToClientObjectID));
-	GetSubsystem<Network>()->RegisterRemoteEvent(E_CLIENTOBJECTAUTHORITY);
+void poseidon::SubscribeToEvents() {
+	SubscribeToEvent(E_UPDATE, URHO3D_HANDLER(poseidon, HandleUpdate));
+	SubscribeToEvent(E_POSTUPDATE, URHO3D_HANDLER(poseidon, HandlePostUpdate));
+	SubscribeToEvent(E_NODECOLLISION, URHO3D_HANDLER(poseidon, HandleCollision));
+	SubscribeToEvent(E_CLIENTCONNECTED, URHO3D_HANDLER(poseidon, handleClientConnected));
+	SubscribeToEvent(E_PHYSICSPRESTEP, URHO3D_HANDLER(poseidon, handlePhysicsPreStep));
 }
 
-void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
-{
+void poseidon::HandleUpdate(StringHash eventType, VariantMap& eventData) {
 	using namespace Update;
 
 	float timeStep = eventData[P_TIMESTEP].GetFloat();
@@ -361,20 +311,20 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 	IntVector2 mouseMove = input->GetMouseMove();
 	UI* ui = GetSubsystem<UI>();
 
-	fpsUpdateCounter -= timeStep;
-
-	if (fpsUpdateCounter <= 0.0f) {
-		Text* counter = (Text*)uiRoot_->GetChild("fpscounter", true);
-		FrameInfo frameInfo = GetSubsystem<Renderer>()->GetFrameInfo();
-		counter->SetText("FPS: " + String(ceil(1.0 / frameInfo.timeStep_)));
-		//Log::WriteRaw(String(ceil(1.0 / frameInfo.timeStep_ )) + "\n");
-		fpsUpdateCounter = 1.0f;
-	}
 	if (!ui->GetCursor()->IsVisible() && scene_ != nullptr && (gs != NONE && gs != WON && gs != LOST && gs != ENDED)) {
 		yaw_ += MOUSE_SENSITIVITY * mouseMove.x_;
 		pitch_ += MOUSE_SENSITIVITY * mouseMove.y_;
 		pitch_ = Clamp(pitch_, -90.0f, 90.0f);
 		MOVE_SPEED = 20.0f;
+
+		fpsUpdateCounter -= timeStep;
+
+		if (fpsUpdateCounter <= 0.0f) {
+			Text* counter = (Text*)uiRoot_->GetChild("fpscounter", true);
+			FrameInfo frameInfo = GetSubsystem<Renderer>()->GetFrameInfo();
+			counter->SetText("FPS: " + String(ceil(1.0 / frameInfo.timeStep_)));
+			fpsUpdateCounter = 1.0f;
+		}
 
 		if (gs == SINGLEPLAYER || gs == SERVER || gs == CLIENT) {
 			if(!menuVisible) {
@@ -472,17 +422,11 @@ void CharacterDemo::HandleUpdate(StringHash eventType, VariantMap& eventData)
 
 			const Controls& controls = connection->GetControls();
 			Quaternion rotation(controls.pitch_, controls.yaw_, 0.0f);
-
-
-			//if (controls.buttons_ & CTRL_FORWARD) playerNode->Translate(Vector3::FORWARD * MOVE_SPEED * timeStep);
-			//if (controls.buttons_ & CTRL_LEFT) playerNode->Translate(Vector3::LEFT * MOVE_SPEED * timeStep);
-			//if (controls.buttons_ & CTRL_RIGHT) playerNode->Translate(Vector3::RIGHT * MOVE_SPEED * timeStep);
-			//if (controls.buttons_ & CTRL_BACK) playerNode->Translate(Vector3::BACK * MOVE_SPEED * timeStep);
 		}
 	}
 }
 
-void CharacterDemo::HandleCollision(StringHash eventType, VariantMap& eventData) {
+void poseidon::HandleCollision(StringHash eventType, VariantMap& eventData) {
 	if (gs == SINGLEPLAYER || gs == SERVER) {
 		using namespace NodeCollision;
 		auto* collided = static_cast<RigidBody*>(eventData[P_BODY].GetPtr());
@@ -525,7 +469,7 @@ void CharacterDemo::HandleCollision(StringHash eventType, VariantMap& eventData)
 	}
 }
 
-void CharacterDemo::HandlePostUpdate(StringHash eventType, VariantMap& eventData) {
+void poseidon::HandlePostUpdate(StringHash eventType, VariantMap& eventData) {
 	if (gs != NONE) {
 		DebugRenderer* dRenderer = scene_->GetComponent<DebugRenderer>();
 		if (drawDebug_) {
@@ -556,7 +500,7 @@ void CharacterDemo::HandlePostUpdate(StringHash eventType, VariantMap& eventData
 	}
 }
 
-void CharacterDemo::spawnMissle() {
+void poseidon::spawnMissle() {
 	if (missileCount < MAX_MISSLES) {
 		missileCount++;
 		Node* player = scene_->GetNode(playerNodeID);
@@ -575,7 +519,7 @@ void CharacterDemo::spawnMissle() {
 	}
 }
 
-void CharacterDemo::CreateMainMenu() {
+void poseidon::CreateMainMenu() {
 	Graphics* graphics = GetSubsystem<Graphics>();
 	UI* ui = GetSubsystem<UI>();
 	XMLFile* uiStyle = cache->GetResource<XMLFile>("UI/DefaultStyle.xml");
@@ -643,22 +587,20 @@ void CharacterDemo::CreateMainMenu() {
 	Button* btnDisconnect = menu_->CreateButton("DISCONNECT", 24, window_, font);
 	btnDisconnect->SetName("bDisconnect");
 	Button* btnQuit = menu_->CreateButton("QUIT", 24, window_, font);
-	//ToolTip* tp = menu_->CreateToolTip("Exits the application", font, 12, window_);
-	//QuitButton->AddChild(tp);
-
-	SubscribeToEvent(btnQuit, E_RELEASED, URHO3D_HANDLER(CharacterDemo, HandleQuit));
-	SubscribeToEvent(btnSingleplayer, E_RELEASED, URHO3D_HANDLER(CharacterDemo, StartSingleplayer));
-	SubscribeToEvent(btnConnect, E_RELEASED, URHO3D_HANDLER(CharacterDemo, handleConnect));
-	SubscribeToEvent(btnCreateServer, E_RELEASED, URHO3D_HANDLER(CharacterDemo, handleCreateServer));
-	SubscribeToEvent(btnDisconnect, E_RELEASED, URHO3D_HANDLER(CharacterDemo, handleDisconnect));
+	
+	SubscribeToEvent(btnQuit, E_RELEASED, URHO3D_HANDLER(poseidon, HandleQuit));
+	SubscribeToEvent(btnSingleplayer, E_RELEASED, URHO3D_HANDLER(poseidon, StartSingleplayer));
+	SubscribeToEvent(btnConnect, E_RELEASED, URHO3D_HANDLER(poseidon, handleConnect));
+	SubscribeToEvent(btnCreateServer, E_RELEASED, URHO3D_HANDLER(poseidon, handleCreateServer));
+	SubscribeToEvent(btnDisconnect, E_RELEASED, URHO3D_HANDLER(poseidon, handleDisconnect));
 	window_->SetVisible(menuVisible);
 }
 
-void CharacterDemo::HandleQuit(StringHash eventType, VariantMap& eventData) {
+void poseidon::HandleQuit(StringHash eventType, VariantMap& eventData) {
 	engine_->Exit();
 }
 
-void CharacterDemo::StartSingleplayer(StringHash eventType, VariantMap& eventData) {
+void poseidon::StartSingleplayer(StringHash eventType, VariantMap& eventData) {
 	UI* ui = GetSubsystem<UI>();
 	gs = SINGLEPLAYER;
 	{
@@ -684,7 +626,7 @@ void CharacterDemo::StartSingleplayer(StringHash eventType, VariantMap& eventDat
 	ui->GetCursor()->SetVisible(false);
 }
 
-void CharacterDemo::handleConnect(StringHash eventType, VariantMap& eventData) {
+void poseidon::handleConnect(StringHash eventType, VariantMap& eventData) {
 	gs = CLIENT;
 	{
 		uiRoot_->RemoveChild(uiRoot_->GetChild("background-texture", false));
@@ -706,7 +648,7 @@ void CharacterDemo::handleConnect(StringHash eventType, VariantMap& eventData) {
 	network->Connect(address, SERVER_PORT, scene_);
 }
 
-void CharacterDemo::handleCreateServer(StringHash eventType, VariantMap& eventData) {
+void poseidon::handleCreateServer(StringHash eventType, VariantMap& eventData) {
 	UI* ui = GetSubsystem<UI>();
 	{
 		uiRoot_->RemoveChild(uiRoot_->GetChild("background-texture", false));
@@ -733,7 +675,7 @@ void CharacterDemo::handleCreateServer(StringHash eventType, VariantMap& eventDa
 	ui->GetCursor()->SetVisible(false);
 }
 
-void CharacterDemo::handleDisconnect(StringHash eventType, VariantMap& eventData) {
+void poseidon::handleDisconnect(StringHash eventType, VariantMap& eventData) {
 	Network* network = GetSubsystem<Network>();
 	Connection* connection = network->GetServerConnection();
 
@@ -749,7 +691,7 @@ void CharacterDemo::handleDisconnect(StringHash eventType, VariantMap& eventData
 	}
 }
 
-void CharacterDemo::handleClientConnected(StringHash eventType, VariantMap& eventData) { 
+void poseidon::handleClientConnected(StringHash eventType, VariantMap& eventData) { 
 	Log::WriteRaw("(handleClientConnected) CALLED");
 	using namespace ClientConnected;
 
@@ -757,11 +699,7 @@ void CharacterDemo::handleClientConnected(StringHash eventType, VariantMap& even
 	newConnection->SetScene(scene_);
 }
 
-void CharacterDemo::handleClientDisconnected(StringHash eventType, VariantMap& eventData) { 
-	using namespace ClientConnected;
-}
-
-void CharacterDemo::handlePhysicsPreStep(StringHash eventType, VariantMap& eventData) { 
+void poseidon::handlePhysicsPreStep(StringHash eventType, VariantMap& eventData) { 
 	Network* network = GetSubsystem<Network>();
 	Connection* serverConnection = network->GetServerConnection();
 	if (serverConnection) {
@@ -770,47 +708,15 @@ void CharacterDemo::handlePhysicsPreStep(StringHash eventType, VariantMap& event
 	}
 }
 
-Controls CharacterDemo::FromClientToServerControls() {
+Controls poseidon::FromClientToServerControls() {
 	Input* input = GetSubsystem<Input>();
 	Controls controls;
-	//controls.Set(CTRL_FORWARD, input->GetKeyDown(KEY_W));
-	//controls.Set(CTRL_BACK, input->GetKeyDown(KEY_S));
-	//controls.Set(CTRL_LEFT, input->GetKeyDown(KEY_A));
-	//controls.Set(CTRL_RIGHT, input->GetKeyDown(KEY_D));
 	controls.pitch_ = pitch_;
 	controls.yaw_ = yaw_;
 	return controls;
 }
 
-void CharacterDemo::handleCustomEvent(StringHash eventType, VariantMap& eventData) { 
-	
-}
-
-void CharacterDemo::handleServerToClientObjectID(StringHash eventType, VariantMap& eventData) { 
-	//clientObjectID_ = eventData[PLAYER_ID].GetUInt();
-	//printf("ClientID: %i", clientObjectID_);
-}
-
-void CharacterDemo::handleConnectedToServer(StringHash eventType, VariantMap& eventData) {
-	
-} 
-
-void CharacterDemo::handleClientSceneLoaded(StringHash eventType, VariantMap& eventData) {
-	std::cout << "Client loaded scene!" << std::endl;
-	using namespace ClientConnected;
-	Connection* newConnection = static_cast<Connection*>(eventData[P_CONNECTION].GetPtr());
-
-
-
-	//Node* newObject = createSpectator();
-	//serverObjects_[newConnection] = newObject;
-
-	//VariantMap remoteEventData;
-	//remoteEventData[PLAYER_ID] = newObject->GetID();
-	//newConnection->SendRemoteEvent(E_CLIENTOBJECTAUTHORITY, true, remoteEventData);
-}
-
-void CharacterDemo::CreateUI() {
+void poseidon::CreateUI() {
 	UI* ui = GetSubsystem<UI>();
 	Graphics* graphics = GetSubsystem<Graphics>();
 	Font* font = cache->GetResource<Font>("Fonts/Roboto-Thin.ttf");
@@ -887,7 +793,7 @@ void CharacterDemo::CreateUI() {
 	timerText->SetPosition((winWidth / 2) - (timerText->GetWidth() / 2), 20);
 }
 
-void CharacterDemo::CreateEndScreen() {
+void poseidon::CreateEndScreen() {
 	UI* ui = GetSubsystem<UI>();
 	Graphics* graphics = GetSubsystem<Graphics>();
 	//XMLFile* uiStyle = cache->GetResource<XMLFile>("UI/DefaultStyle.xml");

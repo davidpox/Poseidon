@@ -1,7 +1,7 @@
 # Set project name
-project (UrhoTutorial)
+project (Poseidon)
 # Define target name
-set (TARGET_NAME UrhoTutorial)
+set (TARGET_NAME Poseidon)
 
 ######################################
 
